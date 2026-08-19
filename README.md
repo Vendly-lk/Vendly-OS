@@ -27,7 +27,7 @@ re-fits on a live browser resize or device rotation and not only on first paint.
 
 | Section | Height | Source |
 | --- | --- | --- |
-| Hero — "Build Your Empire Today!" | 1024 | `src/sections/Hero.tsx` |
+| Hero — "Build Your Empire Today!" + looping video | 1024 | `src/sections/Hero.tsx` |
 | About — "Risk of fake orders" | 1024 | `src/sections/About.tsx` |
 | Categories — six-column rail | 1024 | `src/sections/Categories.tsx` |
 | Testimonials — "What People Say About Us !" | 1024 | `src/sections/Testimonials.tsx` |
@@ -36,6 +36,18 @@ re-fits on a live browser resize or device rotation and not only on first paint.
 
 Shared: `src/components/TopBar.tsx` (nav, theme toggle, CTA), `src/theme.ts`
 (palettes, fonts, type scale), `src/ThemeContext.tsx`, `src/Navigation.tsx`.
+
+### The hero video
+
+The hero illustration in the design is a still frame of a 10s animated sequence,
+supplied separately (`assets/site/hero.mp4`, 1280 x 720 — the CDN's 9.2MB
+web-encoded copy rather than the 128MB original). It plays there instead, at the
+still's exact placement, muted and looping.
+
+The still is kept underneath as the poster: it covers the video's first paint and
+stands in wherever the video cannot play. Playback is skipped entirely when the
+OS asks for reduced motion — a 10s loop that starts on its own is exactly what
+that setting is for — and the still is shown instead.
 
 ### Theming
 
@@ -81,6 +93,11 @@ button all match their design coordinates exactly.
 The extraction approach also validated itself: re-deriving the already-verified
 About screen from the PDF reproduced the numbers measured from Figma earlier
 (nav at 254/35, copy block at 92/262.2, body at 395, outro at 899).
+
+Video playback could not be confirmed here either: Chrome will not start media
+in a document it is not compositing, so the element reports loaded
+(`readyState: 4`), correctly boxed at `0, 304, 1280, 720`, looping and muted, but
+paused. The wiring is verified; the playing is not.
 
 Screenshots could not be captured in this environment — the browser pane does not
 composite frames when it is not displayed — so verification is numeric rather

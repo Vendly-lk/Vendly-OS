@@ -1,5 +1,6 @@
-import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { AccessibilityInfo, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
 
 import { TopBar } from '../components/TopBar';
 import { useTheme } from '../ThemeContext';
@@ -25,9 +26,36 @@ const HEADLINE_INK_OFFSET = 17;
 export function Hero() {
   const { theme, themeName } = useTheme();
   const isDark = themeName === 'dark';
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  // A 10s loop that plays on its own is exactly what "reduce motion" is for.
+  useEffect(() => {
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then(enabled => {
+      if (!cancelled) setReduceMotion(enabled);
+    });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, []);
+
+  const player = useVideoPlayer(require('../../assets/site/hero.mp4'), instance => {
+    instance.loop = true;
+    instance.muted = true;
+  });
+
+  useEffect(() => {
+    if (reduceMotion) player.pause();
+    else player.play();
+  }, [player, reduceMotion]);
 
   return (
     <View style={[styles.section, { backgroundColor: theme.pageBg }]}>
+      {/* The still is a frame of the same sequence, so it sits underneath as the
+       *  poster: it covers the video's first paint and stands in wherever the
+       *  video cannot play. */}
       <Image
         source={require('../../assets/site/hero-illustration.jpg')}
         style={styles.illustration}
@@ -35,6 +63,16 @@ export function Hero() {
         accessibilityIgnoresInvertColors
         accessibilityLabel="Seller overwhelmed by orders across chat apps and spreadsheets"
       />
+      {!reduceMotion ? (
+        <VideoView
+          player={player}
+          style={styles.illustration}
+          contentFit="cover"
+          nativeControls={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
+      ) : null}
 
       <Text style={[styles.headline, { top: HEADLINE_INK_TOP - HEADLINE_INK_OFFSET, color: theme.text }]}>
         Build Your Empire
