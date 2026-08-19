@@ -67,7 +67,6 @@ no `:focus-visible` of its own. State changes are animated with `Animated`
 rather than CSS transitions, which react-native-web does not accept as style
 props.
 
-
 - **Category rail** — at rest each column shows an outlined number, title and
   "View More" pill. Bringing a column forward (hover on web, tap on native)
   floods it with the category's brand colour, drops in the product photo, and
@@ -128,23 +127,23 @@ The extraction approach also validated itself: re-deriving the already-verified
 About screen from the PDF reproduced the numbers measured from Figma earlier
 (nav at 254/35, copy block at 92/262.2, body at 395, outro at 899).
 
-The same limitation blocks visual confirmation of the polish work: hover and
-open/close animations, smooth scrolling, and focus events all depend on the
-rendering lifecycle, which a non-compositing document suspends. Each was instead
-verified by driving it directly — dispatching the events and reading the
-resulting computed styles and scroll calls. Hover transitions the toggle's ground
-from `#e5e5ea` to `#dcdce1`; the cues call `scrollTo` with exactly `2048`
-(categories) and `1024` (about); a keyboard-modality focus paints a 3px ring
-while a mouse-modality focus paints none.
+Verification here is numeric rather than visual: the browser pane does not
+composite frames when it is not displayed, so no screenshot can be taken, and
+everything driven by the rendering lifecycle is suspended — animations, smooth
+scrolling, focus events and media playback all included. Worth an eyeball
+regardless.
 
-Video playback could not be confirmed here either: Chrome will not start media
-in a document it is not compositing, so the element reports loaded
+Those behaviours were instead verified by driving them directly and reading the
+result. Hover transitions the toggle's ground from `#e5e5ea` to `#dcdce1`; the
+scroll cues call `scrollTo` with exactly `2048` (categories) and `1024` (about);
+a keyboard-modality focus paints a 3px ring while a mouse-modality focus paints
+none; the newsletter and sign-in forms produce their errors, their focus moves
+and their confirmations.
+
+The one thing left unproven is the hero video actually playing. It reports loaded
 (`readyState: 4`), correctly boxed at `0, 304, 1280, 720`, looping and muted, but
-paused. The wiring is verified; the playing is not.
-
-Screenshots could not be captured in this environment — the browser pane does not
-composite frames when it is not displayed — so verification is numeric rather
-than visual. Worth an eyeball regardless.
+a document that is not compositing will not start media. The wiring is verified;
+the playing is not.
 
 ## Deliberate deviations
 
