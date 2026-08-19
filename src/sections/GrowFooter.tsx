@@ -1,7 +1,14 @@
 import React, { useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient as SvgGradient,
+  Path,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 
 import { TopBar } from '../components/TopBar';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
@@ -32,6 +39,27 @@ const CANVAS = 1440;
 
 /** The crowd render is drawn at its own 1920 x 957 pixel size, never scaled. */
 const CROWD = { width: 1920, height: 957, left: -240, top: 625 } as const;
+
+/**
+ * The two decorative rings behind the headline. Figma draws them as 790px
+ * ellipses with an arc ratio of 60%, i.e. a hole at 60% of the radius — so they
+ * are rings, not discs: outer r 395, inner r 237, a 158px band whose centreline
+ * sits at r 316. Each theme places them differently.
+ */
+const RING = { size: 790, outer: 395, ratio: 0.6 } as const;
+const RING_BAND = RING.outer - RING.outer * RING.ratio;
+const RING_RADIUS = RING.outer - RING_BAND / 2;
+
+const RINGS = {
+  dark: [
+    { left: -410, top: 141 },
+    { left: 1045, top: 141 },
+  ],
+  light: [
+    { left: -395, top: 123 },
+    { left: 1045, top: 118 },
+  ],
+} as const;
 
 const CAPTURE = { width: 516, height: 68, top: 578, radius: 80 } as const;
 const SUBMIT = { width: 127, height: 47, left: 379, top: 10, radius: 80 } as const;
@@ -90,9 +118,9 @@ export function GrowFooter() {
 
   return (
     <View style={[styles.section, { backgroundColor: dark ? '#000000' : '#ffffff' }]}>
-      {/* Two faint spheres behind the headline, mirrored across the frame. */}
-      <Halo left={-410} top={141} dark={dark} />
-      <Halo left={1045} top={141} dark={dark} />
+      {(dark ? RINGS.dark : RINGS.light).map((ring, index) => (
+        <Ring key={ring.left} id={`ring-${index}`} left={ring.left} top={ring.top} dark={dark} />
+      ))}
 
       <Image
         source={require('../../assets/site/footer-crowd.png')}
@@ -189,20 +217,48 @@ export function GrowFooter() {
   );
 }
 
-/** A soft sphere; the design paints these as vertical 12% gradients. */
-function Halo({ left, top, dark }: { left: number; top: number; dark: boolean }) {
+/**
+ * Drawn as a stroked circle rather than a filled one: the stroke *is* the band,
+ * so the hole comes out exactly at the design's 60% ratio. The gradient is
+ * pinned in user space so it spans the full 790px height regardless of how the
+ * renderer measures a stroked bounding box.
+ */
+function Ring({
+  id,
+  left,
+  top,
+  dark,
+}: {
+  id: string;
+  left: number;
+  top: number;
+  dark: boolean;
+}) {
+  const from = dark ? '#ffffff' : '#070606';
+  const to = dark ? '#000000' : '#ffffff';
+
   return (
-    <LinearGradient
-      colors={
-        dark
-          ? ['rgba(255,255,255,0.12)', 'rgba(0,0,0,0.12)']
-          : ['rgba(7,6,6,0.12)', 'rgba(255,255,255,0.12)']
-      }
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.5, y: 1 }}
-      style={[styles.halo, { left, top }]}
+    <Svg
+      width={RING.size}
+      height={RING.size}
+      style={[styles.ring, { left, top }]}
       pointerEvents="none"
-    />
+    >
+      <Defs>
+        <SvgGradient id={id} x1={0} y1={0} x2={0} y2={RING.size} gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor={from} stopOpacity={0.12} />
+          <Stop offset="1" stopColor={to} stopOpacity={0.12} />
+        </SvgGradient>
+      </Defs>
+      <Circle
+        cx={RING.outer}
+        cy={RING.outer}
+        r={RING_RADIUS}
+        stroke={`url(#${id})`}
+        strokeWidth={RING_BAND}
+        fill="none"
+      />
+    </Svg>
   );
 }
 
@@ -432,11 +488,8 @@ const styles = StyleSheet.create({
     height: 100,
   },
 
-  halo: {
+  ring: {
     position: 'absolute',
-    width: 790,
-    height: 790,
-    borderRadius: 395,
   },
 
   crowd: {

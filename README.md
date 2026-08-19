@@ -67,6 +67,13 @@ literal "SL Flag l Sin" text placeholder with no logo and no social icons. Rathe
 than ship a footer that loses its logo and socials when the theme flips, the dark
 variant's layout is used for both and only its colours change.
 
+The two decorative shapes behind the headline are **rings, not discs**: Figma
+draws them as 790px ellipses with an arc ratio of 60%, so the hole sits at 60% of
+the radius. They are stroked circles — the stroke is the 158px band — with the
+gradient pinned in user space so it spans the full height. Each theme places them
+differently: `(-410, 141)` and `(1045, 141)` on dark, `(-395, 123)` and
+`(1045, 118)` on light.
+
 The crowd render is drawn at its own **1920 x 957** pixel size at `(-240, 625)`
 and never scaled — the earlier build used a 93KB JPEG re-encode of it, which is
 what made it look soft. It is now the original 1.75MB PNG at 1:1.
