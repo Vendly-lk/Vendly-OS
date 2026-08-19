@@ -7,7 +7,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Dimensions, LayoutChangeEvent, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Dimensions,
+  LayoutChangeEvent,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { FRAME } from '../theme';
 import { SectionId } from '../layout';
@@ -35,7 +42,16 @@ export function usePageScroll(): PageScroll {
   return useContext(PageScrollCtx);
 }
 
-function initialViewport() {
+/**
+ * On web the document's own viewport is the authority. `Dimensions` has been
+ * observed to hand back a stale size at mount, and when that happens the whole
+ * page renders at the wrong scale until something else forces a re-measure —
+ * which `onLayout` will not always do, since it rides on a ResizeObserver.
+ */
+function readViewport() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.innerWidth > 0) {
+    return { width: window.innerWidth, height: window.innerHeight };
+  }
   const { width, height } = Dimensions.get('window');
   return {
     width: width > 0 ? width : FRAME.width,
@@ -56,7 +72,7 @@ export type ScaledPageProps = {
 };
 
 export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
-  const [viewport, setViewport] = useState(initialViewport);
+  const [viewport, setViewport] = useState(readViewport);
   const scrollRef = useRef<ScrollView>(null);
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
@@ -72,14 +88,31 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
     );
   }, []);
 
-  React.useEffect(() => {
-    const sub = Dimensions.addEventListener('change', ({ window }) => {
-      if (window.width > 0 && window.height > 0) {
-        setViewport({ width: window.width, height: window.height });
-      }
-    });
-    return () => sub.remove();
+  const applyViewport = useCallback((next: { width: number; height: number }) => {
+    setViewport(prev =>
+      (Math.abs(prev.width - next.width) < 0.5 && Math.abs(prev.height - next.height) < 0.5) ||
+      next.width <= 0 ||
+      next.height <= 0
+        ? prev
+        : next,
+    );
   }, []);
+
+  React.useEffect(() => {
+    const sub = Dimensions.addEventListener('change', ({ window }) =>
+      applyViewport({ width: window.width, height: window.height }),
+    );
+    return () => sub.remove();
+  }, [applyViewport]);
+
+  // Third signal, and the only authoritative one on web: the document itself.
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onResize = () => applyViewport(readViewport());
+    window.addEventListener('resize', onResize);
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, [applyViewport]);
 
   const ids = useMemo(() => sections.map(section => section.id), [sections]);
 
