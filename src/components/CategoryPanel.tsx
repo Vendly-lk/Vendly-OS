@@ -9,33 +9,30 @@ export type CategoryData = {
   number: string;
   title: string;
   numberColor: string;
-  /** Absent for "General Store": its source stroke color is an invalid 5-digit
-   *  hex ("#ffcfc"), which real browsers drop — the number renders with no
-   *  outline there. Reproduced as observed rather than guessed-and-fixed. */
-  numberStroke: string | null;
   image: ImageSourcePropType;
-  /** The peek image's own box. Width is always PANEL_WIDTH: the source's much
-   *  wider `w-[...]` classes are overridden by Tailwind's `img { max-width:
-   *  100% }` preflight rule resolving against the 240px panel, confirmed by
-   *  reading the live computed layout rather than the (ineffective) source
-   *  class. `left`/`top` do apply as authored. */
-  imageTop: number;
-  imageLeft: number;
-  imageHeight: number;
-  /** Ink-top of the number and title glyphs, calibrated against Inter's actual
-   *  rendered metrics rather than derived from the source's broken flex `gap`
-   *  (two of six panels use an invalid negative gap value that real browsers
-   *  drop to 0; positioning off final measured ink sidesteps needing to model
-   *  that quirk at all). */
-  numberInkTop: number;
-  titleInkTop: number;
-  buttonTop: number;
 };
 
 const BUTTON = { width: 144, height: 53 } as const;
 const CONTENT_LEFT = 13;
-/** The SVG text's own baseline, kept well clear of the box's top edge so a
- *  66px ascender never clips. */
+const CONTENT_WIDTH = PANEL_WIDTH - CONTENT_LEFT * 2;
+
+/**
+ * Every column shares one fixed vertical rhythm — number, then title, then
+ * button, then a clean, fully-contained photo — instead of the six different
+ * (and in two cases entirely missing) photo positions and four different
+ * button positions this was originally ported with. See git history / the
+ * README for what that looked like: images overlapping titles in 4 of 6
+ * columns, and 2 columns with no visible photo at all, because their peek
+ * images sat entirely above the frame. This trades that inherited chaos for a
+ * uniform, professional grid — same content, same per-category colors and
+ * photos, consistent placement.
+ */
+const NUMBER_INK_TOP = 380;
+const TITLE_INK_TOP = 470;
+const BUTTON_TOP = 560;
+const IMAGE_TOP = 650;
+const IMAGE_HEIGHT = 330;
+
 const NUMBER_SVG_BASELINE_Y = 60;
 /** container-top -> rendered-ink-top offset at 66px Inter/NUMBER_SVG_BASELINE_Y,
  *  calibrated against the app's own measured output (not derived analytically —
@@ -47,22 +44,9 @@ const TITLE_INK_OFFSET = 5;
 export function CategoryPanel({ data }: { data: CategoryData }) {
   return (
     <View style={styles.panel}>
-      <Image
-        source={data.image}
-        resizeMode="cover"
-        style={[
-          styles.image,
-          { top: data.imageTop, left: data.imageLeft, height: data.imageHeight },
-        ]}
-      />
-
-      {/* Painted after the image (unlike the source, where the image paints
-       *  last and sits on top, covering the title and making the "View More"
-       *  button unclickable in 4 of 6 columns) so the copy stays readable and
-       *  the CTA stays tappable. Same positions, corrected paint order. */}
       <Svg
         pointerEvents="none"
-        style={[styles.numberSvg, { top: data.numberInkTop - NUMBER_INK_OFFSET }]}
+        style={[styles.numberSvg, { top: NUMBER_INK_TOP - NUMBER_INK_OFFSET }]}
         width={216}
         height={100}
       >
@@ -72,22 +56,24 @@ export function CategoryPanel({ data }: { data: CategoryData }) {
           fontFamily="Inter_400Regular"
           fontSize={66}
           fill={data.numberColor}
-          stroke={data.numberStroke ?? 'none'}
-          strokeWidth={data.numberStroke ? 1 : 0}
+          stroke="#ffffff"
+          strokeWidth={1}
         >
           {data.number}
         </SvgText>
       </Svg>
 
-      <Text style={[styles.title, { top: data.titleInkTop - TITLE_INK_OFFSET }]}>{data.title}</Text>
+      <Text style={[styles.title, { top: TITLE_INK_TOP - TITLE_INK_OFFSET }]}>{data.title}</Text>
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`View more in ${data.title}`}
-        style={[styles.button, { top: data.buttonTop }]}
+        style={styles.button}
       >
         <Text style={styles.buttonLabel}>View More</Text>
       </Pressable>
+
+      <Image source={data.image} resizeMode="cover" style={styles.image} />
     </View>
   );
 }
@@ -99,10 +85,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     overflow: 'hidden',
   },
-  image: {
-    position: 'absolute',
-    width: PANEL_WIDTH,
-  },
   numberSvg: {
     position: 'absolute',
     left: CONTENT_LEFT,
@@ -110,14 +92,16 @@ const styles = StyleSheet.create({
   title: {
     position: 'absolute',
     left: CONTENT_LEFT,
-    width: 219,
+    width: CONTENT_WIDTH,
     color: '#000000',
     fontFamily: 'Inter_400Regular',
     fontSize: 24,
+    lineHeight: 29,
   },
   button: {
     position: 'absolute',
     left: CONTENT_LEFT,
+    top: BUTTON_TOP,
     width: BUTTON.width,
     height: BUTTON.height,
     borderRadius: BUTTON.height / 2,
@@ -132,5 +116,12 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
+  },
+  image: {
+    position: 'absolute',
+    left: 0,
+    top: IMAGE_TOP,
+    width: PANEL_WIDTH,
+    height: IMAGE_HEIGHT,
   },
 });

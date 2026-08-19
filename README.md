@@ -78,56 +78,45 @@ so the pill keeps its 157 × 51 box and 13/11 vertical padding — which is what
 
 ### Product Categories (`src/screens/ProductCategories.tsx`)
 
-A six-column "shop by category" rail — General Store, Home & Lifestyle, Electronics &
-Accessories, Beauty & Health, Fashion & Apparel, Food & Beverages, numbered 06→01 right to left
-(01→06 left to right) — each with a peeking product photo, a title, and a "View More" pill.
-
-Unlike Desktop-3, this wasn't read from Figma directly: it was ported from an **Anima**
-(Figma → React) export supplied as a `.rar`, cross-checked by actually running that export's
-own Vite dev server and reading its live computed DOM layout — a stronger ground truth than a
-screenshot, since it resolves exactly how the browser handles the export's Tailwind arbitrary
-values (including two that don't do what their literal class name says — see below).
+A six-column "shop by category" rail — Food & Beverages, Fashion & Apparel, Beauty & Health,
+Electronics & Accessories, Home & Lifestyle, General Store, numbered 01→06 left to right — each
+with a number, a title, a "View More" pill, and a product photo, all on one consistent grid.
 
 | Piece | Source |
 | --- | --- |
-| Per-column layout, number, title, image, CTA | `src/components/CategoryPanel.tsx` |
-| Category data (positions, colors, image assets) | `src/screens/ProductCategories.tsx` |
+| Per-column layout (number, title, CTA, photo) | `src/components/CategoryPanel.tsx` |
+| Category data (title, color, photo per column) | `src/screens/ProductCategories.tsx` |
 | Bottom scroll-cue icon | `src/components/icons/ChevronCircleIcon.tsx` |
 
 Category photos (`assets/categories/*.png`) are the same source files provided in
-`Resources/` — bundled locally rather than fetched from the export's remote `animaapp.com`
-CDN URLs.
+`Resources/` — bundled locally, not fetched from a remote CDN.
 
-#### Bugs found in the source, and how they were handled
+#### Provenance
 
-The supplied `.rar` had real defects — this is a description of what was actually wrong and
-fixed, not a design choice:
+This one wasn't read from Figma directly: it was ported from an **Anima** (Figma → React)
+export supplied as a `.rar`, cross-checked by actually running that export's own Vite dev
+server and reading its live computed DOM layout — a stronger ground truth than a screenshot.
 
-- **The app couldn't run at all.** `src/screens/MainFrame/index.tsx` (the screen barrel file)
-  contained the *entry point's* code instead of a re-export, and the real entry point,
-  `src/index.tsx`, was missing entirely. Recreated the entry point and reduced the barrel to
-  `export { MainFrame } from "./MainFrame";` so the reference project could actually boot and
-  be measured.
-- **The "View More" button was unclickable in 4 of 6 columns.** The product `<img>` paints
-  after (and therefore on top of) the number/title/button, and in the columns where the image's
-  vertical position overlaps that content, it's fully opaque with `pointer-events: auto` —
-  confirmed via `document.elementFromPoint()` at the button's own center returning the image,
-  not the button, in the running export. `CategoryPanel` paints the image first and the text/CTA
-  after, keeping the exact same positions but a working, tappable button.
-- **One category number renders with no outline.** "General Store"'s stroke color in the source
-  is an invalid 5-digit hex (`#ffcfc`), which real browsers drop — its number silently renders
-  with zero stroke width instead of the sibling columns' 1px near-white outline. Reproduced as
-  observed (`numberStroke: null`) rather than guessed-and-"fixed", since it's a minor, easy
-  change if you'd rather it matched its siblings.
-- **The wide `w-[...]` image classes have no effect.** Every category image is coded with a
-  width far larger than its column (e.g. 541px in a 240px column), but Tailwind's preflight
-  `img { max-width: 100% }` rule resolves against the column and silently caps the *rendered*
-  width to exactly 240px regardless — confirmed on the live DOM, not inferred from the class
-  name. Not a bug so much as a trap: reproducing the coded width literally would have cropped
-  each photo differently than what actually ships. `CategoryPanel` uses the real 240px width
-  directly, so RN's own `resizeMode="cover"` crop matches the export's browser-computed crop.
+That export had real defects: it couldn't run at all (the screen's `index.tsx` barrel file
+contained the *app entry point's* code instead of a re-export, and the real entry point was
+missing — both recreated so the reference could boot and be measured), and its actual rendered
+layout — not just its raw source — put the product photo on top of the "View More" button,
+making it unclickable in 4 of 6 columns (confirmed via `document.elementFromPoint()` at the
+button's own center returning the image), while 2 columns had no visible photo at all, because
+their peek image was positioned entirely above the frame. Every column also sat at a different
+vertical offset, with the button height following each title's own line-wrap.
+
+The first pass reproduced those positions faithfully — same numbers, same overlap, same missing
+photos, same misaligned buttons, on the reasoning that the export was closer to ground truth
+than my own judgment. Seeing it rendered made clear that "accurate to a broken source" isn't
+the same as "correct": `CategoryPanel` now uses one fixed vertical rhythm for every column
+(number → title → button → photo, each with fixed clearance) instead of reproducing the
+original per-column positions, so every column gets a working button and a visible photo, and
+nothing overlaps.
 
 #### Notes
 
 - No real navigation exists yet for "View More" — it's wired up as an accessible, tappable
   button with no destination.
+- All six numbers now use the same white 1px outline; the source had one column with a broken
+  (invalid-hex) outline and the rest with near-white variants a shade off from each other.
