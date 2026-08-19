@@ -142,10 +142,14 @@ regardless.
 
 Those behaviours were instead verified by driving them directly and reading the
 result. Hover transitions the toggle's ground from `#e5e5ea` to `#dcdce1`; the
-scroll cues call `scrollTo` with exactly `2048` (categories) and `1024` (about);
-a keyboard-modality focus paints a 3px ring while a mouse-modality focus paints
-none; the newsletter and sign-in forms produce their errors, their focus moves
-and their confirmations.
+scroll cues and nav jump to the right page; a keyboard-modality focus paints a
+3px ring while a mouse-modality focus paints none; the newsletter and sign-in
+forms produce their errors, their focus moves and their confirmations.
+
+The page fit is checked numerically at several viewport sizes: at 1920x1030 and
+1366x768 every page renders inside the viewport on both axes, the scroll extent
+comes to exactly five pages, the hero video sits fully on screen, and sign-in
+needs no scrolling at all.
 
 The one thing left unproven is the hero video actually playing. It reports loaded
 (`readyState: 4`), correctly boxed at `0, 304, 1280, 720`, looping and muted, but
