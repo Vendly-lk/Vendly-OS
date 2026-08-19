@@ -1,10 +1,12 @@
 /**
  * Design tokens for the Vendly marketing site.
  *
- * Values are taken from the Figma frame "Desktop - 3" (node 27:1324) and are
- * expressed in that frame's coordinate space: a 1440 x 1024 canvas. `ScaledFrame`
- * maps that canvas onto whatever viewport the app is running in, so every number
- * in this file — and in the components — is a raw Figma pixel.
+ * Every screen is authored on a 1440-wide artboard, so all numbers here and in
+ * the components are raw design pixels; `ScaledPage` / `ScaledFrame` map that
+ * canvas onto the real viewport.
+ *
+ * Values are lifted from the design PDF, where text is drawn as vector glyphs —
+ * so `get_drawings()` gives exact painted ink boxes and fills, not guesses.
  */
 
 export const FRAME = {
@@ -12,6 +14,50 @@ export const FRAME = {
   height: 1024,
 } as const;
 
+export type ThemeName = 'light' | 'dark';
+
+export type Palette = {
+  name: ThemeName;
+  /** Hero / page ground. */
+  pageBg: string;
+  /** Sections authored on plain white or plain black. */
+  surface: string;
+  text: string;
+  textMuted: string;
+  accent: string;
+  /** "Start For Free" pill inverts between themes. */
+  ctaBg: string;
+  ctaLabel: string;
+  /** Outline pills ("View More", email capture). */
+  hairline: string;
+};
+
+export const palettes: Record<ThemeName, Palette> = {
+  light: {
+    name: 'light',
+    pageBg: '#e1e1e1',
+    surface: '#ffffff',
+    text: '#000000',
+    textMuted: '#8c8b8b',
+    accent: '#00b2ff',
+    ctaBg: '#000000',
+    ctaLabel: '#ffffff',
+    hairline: '#000000',
+  },
+  dark: {
+    name: 'dark',
+    pageBg: '#000000',
+    surface: '#000000',
+    text: '#ffffff',
+    textMuted: '#8c8b8b',
+    accent: '#00b2ff',
+    ctaBg: '#ffffff',
+    ctaLabel: '#000000',
+    hairline: '#ffffff',
+  },
+};
+
+/** Colours that do not flip with the theme. */
 export const colors = {
   background: '#000000',
   text: '#ffffff',
@@ -19,7 +65,6 @@ export const colors = {
   accent: '#00b2ff',
   bullet: '#ff0000',
 
-  /** Header bar sweeps left -> right across the full frame width. */
   gradientFrom: '#ffb4b4',
   gradientTo: '#456c4b',
 
@@ -29,14 +74,20 @@ export const colors = {
 
   scrollCueFill: '#434343',
   scrollCueBorder: '#ffffff',
+
+  /** Category rail. */
+  panelBg: '#f5f5f5',
+  scrollCueRed: '#ff6262',
+  submitBlue: '#1877d2',
+  highlightNavy: '#013871',
+  signInNavy: '#023971',
 } as const;
 
 /**
- * The frame specifies "TharLon" for the body copy and bullets, but that face is
- * not published on Google Fonts and Figma itself renders the design with an
- * Arial fallback. Arimo is metric-compatible with Arial, so bundling it
- * reproduces the design exactly and identically on web, iOS and Android instead
- * of inheriting three different platform defaults.
+ * "TharLon" is specified for the Desktop-3 body copy but is not published on
+ * Google Fonts, and the design itself renders it with an Arial-class fallback.
+ * Arimo is metric-compatible with Arial, so it reproduces the design identically
+ * across web, iOS and Android instead of inheriting three platform defaults.
  */
 export const fonts = {
   nav: 'WendyOne_400Regular',
@@ -46,12 +97,12 @@ export const fonts = {
   eyebrow: 'TenaliRamakrishna_400Regular',
   heading: 'Suwannaphum_400Regular',
   body: 'Arimo_400Regular',
+  ui: 'Inter_400Regular',
+  uiBold: 'Inter_700Bold',
+  display: 'Outfit_700Bold',
 } as const;
 
-/**
- * Line heights are the ones the Figma render resolves "normal" leading to
- * (~1.45x), measured off the exported PNG rather than guessed.
- */
+/** Line heights match what the design resolves "normal" leading to (~1.45x). */
 export const type = {
   nav: { fontSize: 20, lineHeight: 24 },
   login: { fontSize: 24, lineHeight: 29 },
@@ -61,4 +112,17 @@ export const type = {
   heading: { fontSize: 48, lineHeight: 70 },
   body: { fontSize: 36, lineHeight: 52 },
   bullet: { fontSize: 40, lineHeight: 58 },
+} as const;
+
+/** Shared nav geometry — identical on every framed screen in the design. */
+export const NAV = {
+  links: [
+    { label: 'Why Vendly ?', left: 254 },
+    { label: 'Pricing', left: 410 },
+    { label: 'xxxxxxxxxxxx', left: 510 },
+  ],
+  linkTop: 32,
+  loginLeft: 1135,
+  ctaBox: { left: 1269, top: 17, width: 157, height: 51, radius: 56 },
+  toggle: { left: 987, top: 13, width: 128, height: 60, knob: 50, knobInset: 7 },
 } as const;

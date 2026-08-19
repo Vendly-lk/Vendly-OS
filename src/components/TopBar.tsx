@@ -1,91 +1,147 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Path } from 'react-native-svg';
 
-import { colors, fonts, type } from '../theme';
+import { useNavigation } from '../Navigation';
+import { useTheme } from '../ThemeContext';
+import { NAV, colors, fonts, type } from '../theme';
 
 /**
- * The header of "Desktop - 3": the gradient plate (node 77:51), the Vendly.lk
- * lockup (node 236:58), the nav links (node 77:19) and the Login / Start For Free
- * pair (node 77:31).
+ * The nav that sits on every framed screen: wordmark, three links, the
+ * light/dark toggle, Login, and the "Start For Free" pill. Geometry is identical
+ * across every page of the design, so it lives here once.
  *
- * The plate is a 1440 x 293 rounded rectangle hung at y = -182, so only its lower
- * ~111px and its bottom corner radii sit inside the frame. The logo artwork
- * likewise overhangs the top edge at y = -46; the frame clips both.
+ * The CTA pill inverts with the theme (black-on-light, white-on-dark), and its
+ * 24px side padding from the design is deliberately not reproduced — the label
+ * is set nowrap there and overflows that inset, so honouring it would wrap
+ * "Start For Free" onto two lines.
  */
 
-const NAV_LINKS = [
-  { label: 'Why Vendly ?', left: 254 },
-  { label: 'Pricing', left: 410 },
-  { label: 'xxxxxxxxxxxx', left: 510 },
-] as const;
-
 export type TopBarProps = {
+  /** Some frames sit on their own ground and want the bar transparent. */
   onNavPress?: (label: string) => void;
   onLoginPress?: () => void;
   onStartForFreePress?: () => void;
+  showToggle?: boolean;
 };
 
-export function TopBar({ onNavPress, onLoginPress, onStartForFreePress }: TopBarProps) {
+export function TopBar({
+  onNavPress,
+  onLoginPress,
+  onStartForFreePress,
+  showToggle = true,
+}: TopBarProps) {
+  const { theme, themeName, toggleTheme } = useTheme();
+  const { navigate } = useNavigation();
+  const isDark = themeName === 'dark';
+  const goSignIn = onLoginPress ?? (() => navigate('signin'));
+  const goStart = onStartForFreePress ?? (() => navigate('signin'));
+
   return (
     <>
-      <LinearGradient
-        colors={[colors.gradientFrom, colors.gradientTo]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.plate}
-      />
-
-      {/* Logo lockup — node 236:58 */}
       <Image
         source={require('../../assets/vendly-logo.png')}
         style={styles.logoMark}
         resizeMode="cover"
         accessibilityIgnoresInvertColors
       />
-      <Text style={styles.wordmark} accessibilityLabel="Vendly.lk">
+      <Text style={[styles.wordmark, { color: theme.text }]} accessibilityLabel="Vendly.lk">
         endly.
-        <Text style={styles.wordmarkTld}>lk</Text>
+        <Text style={[styles.wordmark, { color: colors.accent }]}>lk</Text>
       </Text>
 
-      {/* Nav links — node 77:19 */}
-      {NAV_LINKS.map(({ label, left }) => (
+      {NAV.links.map(({ label, left }) => (
         <Pressable
           key={label}
           accessibilityRole="link"
           onPress={() => onNavPress?.(label)}
           style={[styles.navItem, { left }]}
         >
-          <Text style={styles.navLabel}>{label}</Text>
+          <Text style={[styles.navLabel, { color: theme.text }]}>{label}</Text>
         </Pressable>
       ))}
 
-      {/* Login + primary CTA — node 77:31 */}
-      <View style={styles.actions}>
-        <Pressable accessibilityRole="link" onPress={onLoginPress} style={styles.loginHit}>
-          <Text style={styles.loginLabel}>Login</Text>
+      {showToggle ? (
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityState={{ checked: isDark }}
+          accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+          onPress={toggleTheme}
+          style={styles.toggleTrack}
+        >
+          <View
+            style={[
+              styles.toggleKnob,
+              isDark
+                ? { left: NAV.toggle.width - NAV.toggle.knob - NAV.toggle.knobInset, backgroundColor: '#000000' }
+                : { left: NAV.toggle.knobInset, backgroundColor: '#ffcc00' },
+            ]}
+          />
+          <View style={[styles.toggleIcon, { left: 20 }]} pointerEvents="none">
+            <SunIcon color={isDark ? '#8e8e93' : '#000000'} />
+          </View>
+          <View style={[styles.toggleIcon, { left: 85 }]} pointerEvents="none">
+            <MoonIcon color={isDark ? '#ffffff' : '#8e8e93'} />
+          </View>
         </Pressable>
+      ) : null}
 
-        <Pressable accessibilityRole="button" onPress={onStartForFreePress} style={styles.cta}>
-          <Text numberOfLines={1} style={styles.ctaLabel}>
-            Start For Free
-          </Text>
-        </Pressable>
-      </View>
+      <Pressable accessibilityRole="link" onPress={goSignIn} style={styles.loginHit}>
+        <Text style={[styles.loginLabel, { color: theme.text }]}>Login</Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={goStart}
+        style={[styles.cta, { backgroundColor: theme.ctaBg }]}
+      >
+        <Text numberOfLines={1} style={[styles.ctaLabel, { color: theme.ctaLabel }]}>
+          Start For Free
+        </Text>
+      </Pressable>
     </>
   );
 }
 
-const styles = StyleSheet.create({
-  plate: {
-    position: 'absolute',
-    left: 0,
-    top: -182,
-    width: 1440,
-    height: 293,
-    borderRadius: 102,
-  },
+function SunIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Circle cx={12} cy={12} r={4.5} fill={color} />
+      {[0, 45, 90, 135, 180, 225, 270, 315].map(deg => {
+        const rad = (deg * Math.PI) / 180;
+        const x1 = 12 + Math.cos(rad) * 7.5;
+        const y1 = 12 + Math.sin(rad) * 7.5;
+        const x2 = 12 + Math.cos(rad) * 9.8;
+        const y2 = 12 + Math.sin(rad) * 9.8;
+        return (
+          <Path
+            key={deg}
+            d={`M${x1} ${y1}L${x2} ${y2}`}
+            stroke={color}
+            strokeWidth={1.8}
+            strokeLinecap="round"
+          />
+        );
+      })}
+    </Svg>
+  );
+}
 
+function MoonIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Path
+        d="M21 13.2A9 9 0 1 1 10.8 3a7 7 0 0 0 10.2 10.2Z"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+const styles = StyleSheet.create({
   logoMark: {
     position: 'absolute',
     left: -25.056,
@@ -98,61 +154,65 @@ const styles = StyleSheet.create({
     left: 54.15,
     top: 41.2,
     width: 85.854,
-    color: colors.text,
-    fontFamily: fonts.wordmark,
-    ...type.wordmark,
-  },
-  wordmarkTld: {
-    color: colors.accent,
     fontFamily: fonts.wordmark,
     ...type.wordmark,
   },
 
   navItem: {
     position: 'absolute',
-    top: 32,
+    top: NAV.linkTop,
   },
   navLabel: {
-    color: colors.text,
     fontFamily: fonts.nav,
     ...type.nav,
   },
 
-  actions: {
+  toggleTrack: {
     position: 'absolute',
-    left: 1135,
-    top: 17,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 49,
+    left: NAV.toggle.left,
+    top: NAV.toggle.top,
+    width: NAV.toggle.width,
+    height: NAV.toggle.height,
+    borderRadius: NAV.toggle.height / 2,
+    backgroundColor: '#e5e5ea',
+    justifyContent: 'center',
   },
+  toggleKnob: {
+    position: 'absolute',
+    top: NAV.toggle.knobInset - 2,
+    width: NAV.toggle.knob,
+    height: NAV.toggle.knob,
+    borderRadius: NAV.toggle.knob / 2,
+  },
+  toggleIcon: {
+    position: 'absolute',
+    top: 20,
+  },
+
   loginHit: {
+    position: 'absolute',
+    left: NAV.loginLeft,
+    top: 17,
     padding: 10,
   },
   loginLabel: {
-    color: colors.text,
     fontFamily: fonts.login,
     ...type.login,
   },
 
   cta: {
-    width: 157,
-    height: 51,
-    borderRadius: 56,
-    backgroundColor: colors.ctaBackground,
-    borderWidth: 3,
-    borderColor: colors.ctaBorder,
+    position: 'absolute',
+    left: NAV.ctaBox.left,
+    top: NAV.ctaBox.top,
+    width: NAV.ctaBox.width,
+    height: NAV.ctaBox.height,
+    borderRadius: NAV.ctaBox.radius,
     alignItems: 'center',
     justifyContent: 'center',
-    // The frame's 13/11 vertical padding is what nudges the label 1px below the
-    // pill's centre. Its 24px side padding is not reproduced: the label is set
-    // nowrap in Figma and overflows that inset, so honouring it here would only
-    // wrap "Start For Free" onto two lines.
     paddingTop: 13,
     paddingBottom: 11,
   },
   ctaLabel: {
-    color: colors.ctaLabel,
     fontFamily: fonts.cta,
     ...type.cta,
   },
