@@ -14,13 +14,20 @@ npm run web
 
 ## How it is built
 
-Every screen is authored on a fixed **1440-wide** canvas. `ScaledPage`
-(`src/components/ScaledPage.tsx`) scales that canvas to the viewport width and
-scrolls it vertically, rather than re-flowing the composition responsively — so
-every component positions itself in raw design pixels and the numbers in the
-source can be read straight off the design.
+Every screen is authored on a fixed **1440-wide** canvas, and each one is a whole
+page of the design rather than a band of a longer document. `ScaledPage`
+(`src/components/ScaledPage.tsx`) gives each page exactly one screenful and
+scales it to *fit* — `min(vw / 1440, vh / pageHeight)` — so a whole page is
+visible at once and scrolling moves between pages rather than through one.
+Paging is on, so a scroll settles on a page instead of between two.
 
-Layout is refined on both `onLayout` and a `Dimensions` `change` listener, so it
+Fitting matters more than it sounds: scaling to viewport *width* blows the 1440
+canvas up by a third on a 1920 display and pushes the lower half of every page —
+the hero's video included — off the bottom edge.
+
+The canvas is never re-flowed, so every component still positions itself in raw
+design pixels and the numbers in the source can be read straight off the design.
+The fit is refined on both `onLayout` and a `Dimensions` `change` listener, so it
 re-fits on a live browser resize or device rotation and not only on first paint.
 
 ### Sections
@@ -59,6 +66,14 @@ dark exactly as the design shows.
 
 ### Interaction
 
+Every control has hover, press and focus states, a pointer cursor on web, and a
+keyboard focus ring. The ring follows `:focus-visible` semantics — it appears for
+tab users and stays out of a mouse user's way — implemented in
+`src/interaction.ts` by tracking the last input modality, since React Native has
+no `:focus-visible` of its own. State changes are animated with `Animated`
+rather than CSS transitions, which react-native-web does not accept as style
+props.
+
 - **Category rail** — at rest each column shows an outlined number, title and
   "View More" pill. Bringing a column forward (hover on web, tap on native)
   floods it with the category's brand colour, drops in the product photo, and
@@ -66,6 +81,31 @@ dark exactly as the design shows.
 - **Testimonials** — the carousel dots select a slide, which drives which card is
   emphasised rather than being decorative.
 - **Login / Start For Free** — route to the sign-in screen.
+- **Scroll cues** — the chevrons at the foot of each section scroll to the next
+  one. They are decoration in the design, but a downward chevron pinned to the
+  bottom of a screen reads as a control, so it behaves like one.
+- **"Why Vendly ?" / "Why We Build Vendly"** — scroll to the About section. The
+  other two nav labels are inert on purpose: the design has no pricing screen and
+  its third label is literal placeholder text (`xxxxxxxxxxxx`), so giving them
+  destinations would mean inventing the site.
+
+### Forms
+
+Both forms were shapes without behaviour; they now work as they look:
+
+- **Newsletter** — validates on submit, shows an inline error, and replaces
+  itself with a confirmation naming the address, rather than leaving the reader
+  guessing whether it worked.
+- **Sign in** — validates both fields on submit (not per keystroke), moves focus
+  to the first field at fault, marks it `aria-invalid`, and offers a show/hide
+  password toggle. Fields carry `autoComplete` / `textContentType` so password
+  managers fill them. Submitting a valid pair says plainly that sign-in is not
+  connected to a backend yet, rather than silently doing nothing.
+- **Field labels** — the design labels its fields with placeholder text alone,
+  which vanishes as soon as anyone types, leaving a filled form of unlabelled
+  boxes. The label now floats into the top of the field once it is focused or
+  filled, so the resting state still matches the design while a filled field
+  still says what it holds.
 
 ## Where the design came from
 
@@ -94,14 +134,27 @@ The extraction approach also validated itself: re-deriving the already-verified
 About screen from the PDF reproduced the numbers measured from Figma earlier
 (nav at 254/35, copy block at 92/262.2, body at 395, outro at 899).
 
-Video playback could not be confirmed here either: Chrome will not start media
-in a document it is not compositing, so the element reports loaded
-(`readyState: 4`), correctly boxed at `0, 304, 1280, 720`, looping and muted, but
-paused. The wiring is verified; the playing is not.
+Verification here is numeric rather than visual: the browser pane does not
+composite frames when it is not displayed, so no screenshot can be taken, and
+everything driven by the rendering lifecycle is suspended — animations, smooth
+scrolling, focus events and media playback all included. Worth an eyeball
+regardless.
 
-Screenshots could not be captured in this environment — the browser pane does not
-composite frames when it is not displayed — so verification is numeric rather
-than visual. Worth an eyeball regardless.
+Those behaviours were instead verified by driving them directly and reading the
+result. Hover transitions the toggle's ground from `#e5e5ea` to `#dcdce1`; the
+scroll cues and nav jump to the right page; a keyboard-modality focus paints a
+3px ring while a mouse-modality focus paints none; the newsletter and sign-in
+forms produce their errors, their focus moves and their confirmations.
+
+The page fit is checked numerically at several viewport sizes: at 1920x1030 and
+1366x768 every page renders inside the viewport on both axes, the scroll extent
+comes to exactly five pages, the hero video sits fully on screen, and sign-in
+needs no scrolling at all.
+
+The one thing left unproven is the hero video actually playing. It reports loaded
+(`readyState: 4`), correctly boxed at `0, 304, 1280, 720`, looping and muted, but
+a document that is not compositing will not start media. The wiring is verified;
+the playing is not.
 
 ## Deliberate deviations
 

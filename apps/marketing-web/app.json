@@ -20,7 +20,13 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "Vendly.lk",
+      "shortName": "Vendly",
+      "description": "Vendly is a fraud detection tool for Sri Lankan e-commerce that scans and verifies your orders, so fake orders and courier returns stop eating your margin.",
+      "lang": "en",
+      "themeColor": "#000000",
+      "backgroundColor": "#e1e1e1"
     },
     "plugins": [
       "expo-font",

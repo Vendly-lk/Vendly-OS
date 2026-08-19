@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 
@@ -13,6 +13,7 @@ import { VarelaRound_400Regular } from '@expo-google-fonts/varela-round';
 import { WendyOne_400Regular } from '@expo-google-fonts/wendy-one';
 
 import { ScaledPage } from './src/components/ScaledPage';
+import { clickable, focusRing, useInteraction, useToggleAnimation } from './src/interaction';
 import { NavigationProvider, Route, useNavigation } from './src/Navigation';
 import { About, ABOUT_HEIGHT } from './src/sections/About';
 import { Categories, CATEGORIES_HEIGHT } from './src/sections/Categories';
@@ -22,8 +23,7 @@ import { Testimonials, TESTIMONIALS_HEIGHT } from './src/sections/Testimonials';
 import { SignIn, SIGNIN_HEIGHT } from './src/screens/SignIn';
 import { ThemeProvider, useTheme } from './src/ThemeContext';
 
-const HOME_HEIGHT =
-  HERO_HEIGHT + ABOUT_HEIGHT + CATEGORIES_HEIGHT + TESTIMONIALS_HEIGHT + FOOTER_HEIGHT;
+
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -63,29 +63,73 @@ function Site() {
 
   if (route === 'signin') {
     return (
-      <ScaledPage contentHeight={SIGNIN_HEIGHT} backgroundColor="#a2aeb8">
-        <SignIn />
-        <BackToSite onPress={() => navigate('home')} />
-      </ScaledPage>
+      <ScaledPage
+        backgroundColor="#a2aeb8"
+        sections={[
+          {
+            id: 'hero',
+            height: SIGNIN_HEIGHT,
+            content: (
+              <>
+                <SignIn />
+                <BackToSite onPress={() => navigate('home')} />
+              </>
+            ),
+          },
+        ]}
+      />
     );
   }
 
   return (
-    <ScaledPage contentHeight={HOME_HEIGHT} backgroundColor={theme.pageBg}>
-      <Hero />
-      <About />
-      <Categories />
-      <Testimonials />
-      <GrowFooter />
-    </ScaledPage>
+    <ScaledPage
+      backgroundColor={theme.pageBg}
+      sections={[
+        { id: 'hero', height: HERO_HEIGHT, content: <Hero /> },
+        { id: 'about', height: ABOUT_HEIGHT, content: <About /> },
+        { id: 'categories', height: CATEGORIES_HEIGHT, content: <Categories /> },
+        { id: 'testimonials', height: TESTIMONIALS_HEIGHT, content: <Testimonials /> },
+        { id: 'footer', height: FOOTER_HEIGHT, content: <GrowFooter /> },
+      ]}
+    />
   );
 }
 
-/** The sign-in frame has no nav of its own, so give it a way back. */
+/**
+ * The sign-in frame carries no nav of its own, so it needs a way back. Styled to
+ * belong to that screen — a white pill on its slate ground, matching the card —
+ * rather than looking like a debug affordance dropped on top of it.
+ */
 function BackToSite({ onPress }: { onPress: () => void }) {
+  const { pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const slide = useToggleAnimation(highlighted, 160);
+
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.back}>
-      <Text style={styles.backLabel}>← Back to site</Text>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Back to site"
+      onPress={onPress}
+      {...handlers}
+      style={[
+        styles.back,
+        clickable,
+        pressed && styles.backPressed,
+        focusVisible && focusRing('#023971', 3),
+      ]}
+    >
+      <Animated.Text
+        style={[
+          styles.backArrow,
+          {
+            transform: [
+              { translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
+            ],
+          },
+        ]}
+      >
+        {'\u2190'}
+      </Animated.Text>
+      <Text style={styles.backLabel}>Back to site</Text>
     </Pressable>
   );
 }
@@ -99,13 +143,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 89,
     top: 40,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+    backgroundColor: '#ffffff',
+  },
+  backPressed: {
+    opacity: 0.85,
+  },
+  backArrow: {
+    color: '#023971',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 17,
   },
   backLabel: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: '#023971',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 17,
   },
 });

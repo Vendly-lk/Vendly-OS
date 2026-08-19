@@ -1,8 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { AccessibilityInfo, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  AppState,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
+import { usePageScroll } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
+import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
+import { useNavigation } from '../Navigation';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
 
@@ -25,8 +37,11 @@ const HEADLINE_INK_OFFSET = 17;
 
 export function Hero() {
   const { theme, themeName } = useTheme();
+  const { navigate } = useNavigation();
+  const { scrollToSection } = usePageScroll();
   const isDark = themeName === 'dark';
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [visible, setVisible] = useState(() => AppState.currentState !== 'background');
 
   // A 10s loop that plays on its own is exactly what "reduce motion" is for.
   useEffect(() => {
@@ -41,15 +56,27 @@ export function Hero() {
     };
   }, []);
 
+  // Browsers stop background media to save power, and asking a hidden video to
+  // play just races that and rejects. Following the page's own visibility keeps
+  // the loop off while nobody is watching it.
+  //
+  // The test is "not backgrounded" rather than "is active" deliberately: if a
+  // platform reports some third state, the video should still play. Failing the
+  // other way would leave the hero permanently frozen on its poster.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => setVisible(state !== 'background'));
+    return () => sub.remove();
+  }, []);
+
   const player = useVideoPlayer(require('../../assets/site/hero.mp4'), instance => {
     instance.loop = true;
     instance.muted = true;
   });
 
   useEffect(() => {
-    if (reduceMotion) player.pause();
+    if (reduceMotion || !visible) player.pause();
     else player.play();
-  }, [player, reduceMotion]);
+  }, [player, reduceMotion, visible]);
 
   return (
     <View style={[styles.section, { backgroundColor: theme.pageBg }]}>
@@ -89,21 +116,79 @@ export function Hero() {
         Today!
       </Text>
 
-      <Pressable
-        accessibilityRole="button"
-        style={[styles.cta, { backgroundColor: theme.ctaBg }]}
-      >
-        <Text numberOfLines={1} style={[styles.ctaLabel, { color: theme.ctaLabel }]}>
-          Start For Free
-        </Text>
-      </Pressable>
+      <HeroCta
+        bg={theme.ctaBg}
+        label={theme.ctaLabel}
+        onPress={() => navigate('signin')}
+      />
 
-      <Pressable accessibilityRole="link" style={styles.whyLink}>
-        <Text style={[styles.whyLabel, { color: theme.text }]}>Why We Build Vendly</Text>
-      </Pressable>
+      <WhyLink color={theme.text} onPress={() => scrollToSection('about')} />
 
       <TopBar />
     </View>
+  );
+}
+
+/** The hero's primary action, matching the nav pill's hover behaviour. */
+function HeroCta({ bg, label, onPress }: { bg: string; label: string; onPress: () => void }) {
+  const { pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const lift = useToggleAnimation(highlighted && !pressed, 160);
+
+  return (
+    <Animated.View
+      style={[
+        styles.ctaWrap,
+        {
+          transform: [
+            { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
+          ],
+        },
+      ]}
+    >
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        {...handlers}
+        style={[
+          styles.cta,
+          clickable,
+          { backgroundColor: bg, opacity: pressed ? 0.85 : 1 },
+          focusVisible && focusRing(colors.accent, 4),
+        ]}
+      >
+        <Text numberOfLines={1} style={[styles.ctaLabel, { color: label }]}>
+          Start For Free
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function WhyLink({ color, onPress }: { color: string; onPress: () => void }) {
+  const { hovered, pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const grow = useToggleAnimation(highlighted);
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      {...handlers}
+      style={[styles.whyLink, clickable, focusVisible && focusRing(color, 3)]}
+    >
+      <Text style={[styles.whyLabel, { color, opacity: pressed ? 0.6 : 1 }]}>
+        Why We Build Vendly
+      </Text>
+      <Animated.View
+        style={[
+          styles.whyUnderline,
+          {
+            backgroundColor: color,
+            transform: [{ scaleX: grow }],
+            opacity: hovered || focusVisible ? 1 : 0,
+          },
+        ]}
+      />
+    </Pressable>
   );
 }
 
@@ -127,10 +212,12 @@ const styles = StyleSheet.create({
     fontSize: 64,
     lineHeight: 93,
   },
-  cta: {
+  ctaWrap: {
     position: 'absolute',
     left: 40,
     top: 899,
+  },
+  cta: {
     width: 157,
     height: 51,
     borderRadius: 56,
@@ -151,5 +238,13 @@ const styles = StyleSheet.create({
   whyLabel: {
     fontFamily: fonts.cta,
     fontSize: 20,
+  },
+  whyUnderline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -3,
+    height: 2,
+    borderRadius: 1,
   },
 });

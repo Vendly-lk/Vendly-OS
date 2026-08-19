@@ -1,7 +1,8 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Animated, Pressable, StyleSheet } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { colors } from '../theme';
 
 /**
@@ -25,16 +26,29 @@ const SIZE = 70;
 
 export type ScrollCueProps = {
   onPress?: () => void;
+  label?: string;
 };
 
-export function ScrollCue({ onPress }: ScrollCueProps) {
+export function ScrollCue({ onPress, label = 'Scroll down' }: ScrollCueProps) {
+  const { pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const nudge = useToggleAnimation(highlighted, 160);
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Scroll down"
+      accessibilityLabel={label}
       onPress={onPress}
-      style={styles.disc}
+      {...handlers}
+      style={[styles.disc, clickable, focusVisible && focusRing(colors.accent, 4)]}
     >
+      <Animated.View
+        style={{
+          opacity: pressed ? 0.75 : 1,
+          transform: [
+            { translateY: nudge.interpolate({ inputRange: [0, 1], outputRange: [0, 3] }) },
+          ],
+        }}
+      >
       <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
         <Circle
           cx={SIZE / 2}
@@ -53,6 +67,7 @@ export function ScrollCue({ onPress }: ScrollCueProps) {
           fill="none"
         />
       </Svg>
+      </Animated.View>
     </Pressable>
   );
 }
