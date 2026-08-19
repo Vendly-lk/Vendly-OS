@@ -1,7 +1,10 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
+import { usePageScroll } from './ScaledPage';
+import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
+import { SECTION_TOP } from '../layout';
 import { useNavigation } from '../Navigation';
 import { useTheme } from '../ThemeContext';
 import { NAV, colors, fonts, type } from '../theme';
@@ -33,9 +36,22 @@ export function TopBar({
 }: TopBarProps) {
   const { theme, themeName, toggleTheme } = useTheme();
   const { navigate } = useNavigation();
+  const { scrollToY } = usePageScroll();
   const isDark = themeName === 'dark';
   const goSignIn = onLoginPress ?? (() => navigate('signin'));
   const goStart = onStartForFreePress ?? (() => navigate('signin'));
+  const toggle = useInteraction();
+  const knobShift = useToggleAnimation(isDark, 220);
+
+  /**
+   * "Why Vendly ?" is the one nav label with a section behind it, so it scrolls
+   * there. The other two are left inert on purpose: the design has no pricing
+   * screen, and its third label is literal placeholder text ("xxxxxxxxxxxx") —
+   * inventing destinations for them would be inventing the site.
+   */
+  const jumpTo = (label: string) => {
+    if (label === 'Why Vendly ?') scrollToY(SECTION_TOP.about);
+  };
 
   return (
     <>
@@ -51,14 +67,13 @@ export function TopBar({
       </Text>
 
       {NAV.links.map(({ label, left }) => (
-        <Pressable
+        <NavLink
           key={label}
-          accessibilityRole="link"
-          onPress={() => onNavPress?.(label)}
-          style={[styles.navItem, { left }]}
-        >
-          <Text style={[styles.navLabel, { color: theme.text }]}>{label}</Text>
-        </Pressable>
+          label={label}
+          left={left}
+          color={theme.text}
+          onPress={() => (onNavPress ? onNavPress(label) : jumpTo(label))}
+        />
       ))}
 
       {showToggle ? (
@@ -67,14 +82,27 @@ export function TopBar({
           accessibilityState={{ checked: isDark }}
           accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
           onPress={toggleTheme}
-          style={styles.toggleTrack}
+          {...toggle.handlers}
+          style={[
+            styles.toggleTrack,
+            clickable,
+            toggle.hovered && styles.toggleTrackHover,
+            toggle.focusVisible && focusRing(theme.accent),
+          ]}
         >
-          <View
+          <Animated.View
             style={[
               styles.toggleKnob,
-              isDark
-                ? { left: NAV.toggle.width - NAV.toggle.knob - NAV.toggle.knobInset, backgroundColor: '#000000' }
-                : { left: NAV.toggle.knobInset, backgroundColor: '#ffcc00' },
+              {
+                left: knobShift.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [NAV.toggle.knobInset, NAV.toggle.width - NAV.toggle.knob - NAV.toggle.knobInset],
+                }),
+                backgroundColor: knobShift.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['#ffcc00', '#000000'],
+                }),
+              },
             ]}
           />
           <View style={[styles.toggleIcon, { left: 20 }]} pointerEvents="none">
@@ -86,20 +114,121 @@ export function TopBar({
         </Pressable>
       ) : null}
 
-      <Pressable accessibilityRole="link" onPress={goSignIn} style={styles.loginHit}>
-        <Text style={[styles.loginLabel, { color: theme.text }]}>Login</Text>
-      </Pressable>
+      <LoginLink color={theme.text} onPress={goSignIn} />
+      <StartForFree bg={theme.ctaBg} label={theme.ctaLabel} onPress={goStart} />
+    </>
+  );
+}
 
+/**
+ * A nav link. The underline grows on hover/focus rather than appearing at full
+ * width, and is drawn as a sibling bar so it can animate without the label
+ * reflowing the way a text-decoration would.
+ */
+function NavLink({
+  label,
+  left,
+  color,
+  onPress,
+}: {
+  label: string;
+  left: number;
+  color: string;
+  onPress: () => void;
+}) {
+  const { hovered, pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const grow = useToggleAnimation(highlighted);
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      {...handlers}
+      style={[styles.navItem, { left }, clickable, focusVisible && focusRing(color, 4)]}
+    >
+      <Text style={[styles.navLabel, { color, opacity: pressed ? 0.6 : 1 }]}>{label}</Text>
+      <Animated.View
+        style={[
+          styles.underline,
+          {
+            backgroundColor: color,
+            transform: [{ scaleX: grow }],
+            opacity: hovered || focusVisible ? 1 : 0,
+          },
+        ]}
+      />
+    </Pressable>
+  );
+}
+
+function LoginLink({ color, onPress }: { color: string; onPress: () => void }) {
+  const { hovered, pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const grow = useToggleAnimation(highlighted);
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={onPress}
+      {...handlers}
+      style={[styles.loginHit, clickable, focusVisible && focusRing(color, 2)]}
+    >
+      <Text style={[styles.loginLabel, { color, opacity: pressed ? 0.6 : 1 }]}>Login</Text>
+      <Animated.View
+        style={[
+          styles.underline,
+          {
+            left: 10,
+            right: 10,
+            backgroundColor: color,
+            transform: [{ scaleX: grow }],
+            opacity: hovered || focusVisible ? 1 : 0,
+          },
+        ]}
+      />
+    </Pressable>
+  );
+}
+
+/** The primary action: lifts slightly on hover, settles under the press. */
+function StartForFree({
+  bg,
+  label,
+  onPress,
+}: {
+  bg: string;
+  label: string;
+  onPress: () => void;
+}) {
+  const { pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const lift = useToggleAnimation(highlighted && !pressed, 160);
+
+  return (
+    <Animated.View
+      style={[
+        styles.ctaWrap,
+        {
+          transform: [
+            { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
+          ],
+        },
+      ]}
+    >
       <Pressable
         accessibilityRole="button"
-        onPress={goStart}
-        style={[styles.cta, { backgroundColor: theme.ctaBg }]}
+        onPress={onPress}
+        {...handlers}
+        style={[
+          styles.cta,
+          clickable,
+          { backgroundColor: bg, opacity: pressed ? 0.85 : 1 },
+          focusVisible && focusRing(colors.accent, 4),
+        ]}
       >
-        <Text numberOfLines={1} style={[styles.ctaLabel, { color: theme.ctaLabel }]}>
+        <Text numberOfLines={1} style={[styles.ctaLabel, { color: label }]}>
           Start For Free
         </Text>
       </Pressable>
-    </>
+    </Animated.View>
   );
 }
 
@@ -166,6 +295,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.nav,
     ...type.nav,
   },
+  /** Anchored to the control's own box; scaleX animates it out from the centre. */
+  underline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -2,
+    height: 2,
+    borderRadius: 1,
+  },
 
   toggleTrack: {
     position: 'absolute',
@@ -176,6 +314,9 @@ const styles = StyleSheet.create({
     borderRadius: NAV.toggle.height / 2,
     backgroundColor: '#e5e5ea',
     justifyContent: 'center',
+  },
+  toggleTrackHover: {
+    backgroundColor: '#dcdce1',
   },
   toggleKnob: {
     position: 'absolute',
@@ -200,10 +341,12 @@ const styles = StyleSheet.create({
     ...type.login,
   },
 
-  cta: {
+  ctaWrap: {
     position: 'absolute',
     left: NAV.ctaBox.left,
     top: NAV.ctaBox.top,
+  },
+  cta: {
     width: NAV.ctaBox.width,
     height: NAV.ctaBox.height,
     borderRadius: NAV.ctaBox.radius,

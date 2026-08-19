@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { usePageScroll } from '../components/ScaledPage';
 import { ScrollCue } from '../components/ScrollCue';
+import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
+import { SECTION_TOP } from '../layout';
 import { useTheme } from '../ThemeContext';
-import { fonts } from '../theme';
+import { colors, fonts } from '../theme';
 
 /**
  * "What People Say About Us !" — three quote cards with carousel dots.
@@ -28,6 +31,7 @@ const QUOTES = [
 
 export function Testimonials() {
   const { theme } = useTheme();
+  const { scrollToY } = usePageScroll();
   const [activeSlide, setActiveSlide] = useState(1);
 
   return (
@@ -36,45 +40,125 @@ export function Testimonials() {
         What People Say About Us !
       </Text>
 
-      {QUOTES.map((quote, index) => {
-        const isActive = index === activeSlide;
-        return (
-          <View
-            key={quote}
-            style={[
-              styles.card,
-              {
-                left: CARD.firstLeft + index * CARD.pitch,
-                borderColor: theme.text,
-                opacity: isActive ? 1 : 0.55,
-              },
-            ]}
-          >
-            <Text style={[styles.quote, { color: theme.text }]}>{quote}</Text>
-          </View>
-        );
-      })}
+      {QUOTES.map((quote, index) => (
+        <QuoteCard
+          key={quote}
+          quote={quote}
+          left={CARD.firstLeft + index * CARD.pitch}
+          color={theme.text}
+          active={index === activeSlide}
+          position={index + 1}
+          total={QUOTES.length}
+          onSelect={() => setActiveSlide(index)}
+        />
+      ))}
 
       <View style={styles.dots}>
         {QUOTES.map((quote, index) => (
-          <Pressable
+          <Dot
             key={quote}
-            accessibilityRole="button"
-            accessibilityLabel={`Show testimonial ${index + 1}`}
-            accessibilityState={{ selected: index === activeSlide }}
+            selected={index === activeSlide}
+            color={theme.text}
+            label={`Show testimonial ${index + 1} of ${QUOTES.length}`}
             onPress={() => setActiveSlide(index)}
-            style={[
-              styles.dot,
-              { backgroundColor: index === activeSlide ? theme.text : '#8c8b8b' },
-            ]}
           />
         ))}
       </View>
 
       <View style={styles.cue}>
-        <ScrollCue />
+        <ScrollCue onPress={() => scrollToY(SECTION_TOP.footer)} label="Scroll to newsletter" />
       </View>
     </View>
+  );
+}
+
+/**
+ * A quote card. The design marks the middle card as the live slide with a solid
+ * border while the outer two fade; selecting a card promotes it, so the cards
+ * and the dots drive the same state instead of the dots being decorative.
+ */
+function QuoteCard({
+  quote,
+  left,
+  color,
+  active,
+  position,
+  total,
+  onSelect,
+}: {
+  quote: string;
+  left: number;
+  color: string;
+  active: boolean;
+  position: number;
+  total: number;
+  onSelect: () => void;
+}) {
+  const { hovered, focusVisible, handlers } = useInteraction();
+  const lit = useToggleAnimation(active || hovered, 200);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Testimonial ${position} of ${total}: ${quote}`}
+      accessibilityState={{ selected: active }}
+      onPress={onSelect}
+      {...handlers}
+      style={[styles.cardHit, { left }, clickable, focusVisible && focusRing(colors.accent, 4)]}
+    >
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            borderColor: color,
+            opacity: lit.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] }),
+          },
+        ]}
+      >
+        <Text style={[styles.quote, { color }]}>{quote}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+/**
+ * The dot is 15px in the design, which is well under a comfortable target, so
+ * the pressable area is padded out around it while the painted dot keeps its
+ * size.
+ */
+function Dot({
+  selected,
+  color,
+  label,
+  onPress,
+}: {
+  selected: boolean;
+  color: string;
+  label: string;
+  onPress: () => void;
+}) {
+  const { hovered, focusVisible, handlers } = useInteraction();
+  const grow = useToggleAnimation(selected || hovered, 180);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      {...handlers}
+      style={[styles.dotHit, clickable, focusVisible && focusRing(colors.accent, 0)]}
+    >
+      <Animated.View
+        style={[
+          styles.dot,
+          {
+            backgroundColor: selected ? color : '#8c8b8b',
+            transform: [{ scale: grow.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] }) }],
+          },
+        ]}
+      />
+    </Pressable>
   );
 }
 
@@ -92,18 +176,23 @@ const styles = StyleSheet.create({
     fontSize: 70,
     lineHeight: 92,
   },
-  card: {
+  cardHit: {
     position: 'absolute',
     top: CARD.top,
     width: CARD.width,
     height: CARD.height,
+    borderRadius: 20,
+  },
+  card: {
+    width: '100%',
+    height: '100%',
     borderWidth: 2,
     borderRadius: 20,
   },
   quote: {
     position: 'absolute',
     left: TEXT_INSET,
-    top: QUOTE_INK_TOP - CARD.top - QUOTE_INK_OFFSET,
+    top: QUOTE_INK_TOP - CARD.top - QUOTE_INK_OFFSET - 2,
     width: CARD.width - TEXT_INSET * 2,
     fontFamily: fonts.heading,
     fontSize: 20,
@@ -113,10 +202,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 676,
+    top: 676 - 12,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 19,
+    alignItems: 'center',
+    gap: 19 - 24,
+  },
+  dotHit: {
+    width: 39,
+    height: 39,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dot: {
     width: 15,

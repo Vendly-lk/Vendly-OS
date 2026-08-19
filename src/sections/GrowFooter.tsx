@@ -1,10 +1,14 @@
-import React from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Animated, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { TopBar } from '../components/TopBar';
+import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
+
+/** Deliberately permissive: enough to catch a typo, not to police addresses. */
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /**
  * The closing call-to-action and site footer, authored on a taller 1440 x 1440
@@ -52,18 +56,7 @@ export function GrowFooter() {
         Grow your Business.
       </Text>
 
-      <View style={[styles.capture, { borderColor: theme.text }]}>
-        <TextInput
-          placeholder="Enter your email address"
-          placeholderTextColor={theme.textMuted}
-          style={[styles.captureInput, { color: theme.text }]}
-          inputMode="email"
-          autoCapitalize="none"
-        />
-        <Pressable accessibilityRole="button" style={styles.submit}>
-          <Text style={styles.submitLabel}>Submit</Text>
-        </Pressable>
-      </View>
+      <EmailCapture textColor={theme.text} mutedColor={theme.textMuted} />
 
       <View style={styles.footerPlate} />
 
@@ -81,9 +74,7 @@ export function GrowFooter() {
       {LINK_COLUMNS.map(column => (
         <View key={column.center} style={[styles.linkColumn, { left: column.center - 120 }]}>
           {column.links.map(link => (
-            <Pressable key={link} accessibilityRole="link" style={styles.linkHit}>
-              <Text style={styles.linkLabel}>{link}</Text>
-            </Pressable>
+            <FooterLink key={link} label={link} style={styles.linkHit} textStyle={styles.linkLabel} />
           ))}
         </View>
       ))}
@@ -99,9 +90,12 @@ export function GrowFooter() {
       <Text style={styles.localeLabel}>l Sin</Text>
 
       {LEGAL.map(item => (
-        <Pressable key={item.label} accessibilityRole="link" style={[styles.legalHit, { left: item.left }]}>
-          <Text style={styles.legalLabel}>{item.label}</Text>
-        </Pressable>
+        <FooterLink
+          key={item.label}
+          label={item.label}
+          style={[styles.legalHit, { left: item.left }]}
+          textStyle={styles.legalLabel}
+        />
       ))}
 
       <View style={styles.social}>
@@ -113,6 +107,132 @@ export function GrowFooter() {
 
       <TopBar showToggle={false} />
     </View>
+  );
+}
+
+/**
+ * The email capture. The design draws the field and the Submit button but has
+ * nothing behind them; this gives them the behaviour the shape promises —
+ * validation on submit, an inline error, and a confirmation that replaces the
+ * form rather than leaving the user guessing whether it worked.
+ */
+function EmailCapture({ textColor, mutedColor }: { textColor: string; mutedColor: string }) {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const submit = useInteraction();
+  const inputRef = useRef<TextInput>(null);
+
+  const onSubmit = () => {
+    const value = email.trim();
+    if (!value) {
+      setError('Enter your email address to get started.');
+      inputRef.current?.focus();
+      return;
+    }
+    if (!EMAIL.test(value)) {
+      setError('That does not look like an email address.');
+      inputRef.current?.focus();
+      return;
+    }
+    setError(null);
+    setDone(true);
+  };
+
+  if (done) {
+    return (
+      <View style={[styles.capture, styles.captureDone, { borderColor: textColor }]}>
+        <Text accessibilityLiveRegion="polite" style={[styles.captureDoneLabel, { color: textColor }]}>
+          Thanks — we will be in touch at {email.trim()}.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <View
+        style={[
+          styles.capture,
+          { borderColor: error ? '#d92d20' : textColor },
+          focused && styles.captureFocused,
+        ]}
+      >
+        <TextInput
+          ref={inputRef}
+          value={email}
+          onChangeText={next => {
+            setEmail(next);
+            if (error) setError(null);
+          }}
+          onSubmitEditing={onSubmit}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder="Enter your email address"
+          placeholderTextColor={mutedColor}
+          style={[styles.captureInput, { color: textColor }]}
+          inputMode="email"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          textContentType="emailAddress"
+          returnKeyType="go"
+          accessibilityLabel="Email address"
+          aria-invalid={!!error}
+        />
+        <Pressable
+          accessibilityRole="button"
+          onPress={onSubmit}
+          {...submit.handlers}
+          style={[
+            styles.submit,
+            clickable,
+            submit.highlighted && styles.submitHover,
+            submit.pressed && styles.submitPressed,
+            submit.focusVisible && focusRing('#ffffff', -4),
+          ]}
+        >
+          <Text style={styles.submitLabel}>Submit</Text>
+        </Pressable>
+      </View>
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.captureError}>
+          {error}
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
+/** Footer links: underline on hover/focus, matching the nav's behaviour. */
+function FooterLink({
+  label,
+  style,
+  textStyle,
+}: {
+  label: string;
+  style: object | object[];
+  textStyle: object;
+}) {
+  const { hovered, pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const grow = useToggleAnimation(highlighted);
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      {...handlers}
+      style={[style as never, clickable, focusVisible && focusRing(colors.accent, 2)]}
+    >
+      <Text style={[textStyle as never, { opacity: pressed ? 0.6 : 1 }]}>{label}</Text>
+      <Animated.View
+        style={[
+          styles.footerUnderline,
+          { transform: [{ scaleX: grow }], opacity: hovered || focusVisible ? 1 : 0 },
+        ]}
+      />
+    </Pressable>
   );
 }
 
@@ -160,6 +280,40 @@ function SocialIcon({ name }: { name: 'facebook' | 'x' | 'youtube' | 'instagram'
 }
 
 const styles = StyleSheet.create({
+  captureFocused: {
+    borderWidth: 2,
+  },
+  captureDone: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  captureDoneLabel: {
+    fontFamily: fonts.ui,
+    fontSize: 20,
+  },
+  captureError: {
+    position: 'absolute',
+    left: 196,
+    top: 700,
+    fontFamily: fonts.ui,
+    fontSize: 16,
+    color: '#d92d20',
+  },
+  submitHover: {
+    backgroundColor: '#1466b8',
+  },
+  submitPressed: {
+    opacity: 0.85,
+  },
+  footerUnderline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 2,
+    height: 1,
+    borderRadius: 1,
+    backgroundColor: '#ffffff',
+  },
   section: {
     width: 1440,
     height: FOOTER_HEIGHT,

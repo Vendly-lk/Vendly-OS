@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, ImageSourcePropType, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Text as SvgText } from 'react-native-svg';
 
 import { ChevronCircleIcon } from '../components/icons/ChevronCircleIcon';
+import { usePageScroll } from '../components/ScaledPage';
+import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
+import { SECTION_TOP } from '../layout';
 import { colors, fonts } from '../theme';
 
 /**
@@ -98,6 +101,7 @@ const CATEGORIES: Category[] = [
 
 export function Categories() {
   const [active, setActive] = useState<string | null>(null);
+  const { scrollToY } = usePageScroll();
 
   return (
     <View style={styles.section}>
@@ -113,7 +117,7 @@ export function Categories() {
       ))}
 
       <View style={styles.chevron}>
-        <ChevronCircleIcon />
+        <ChevronCircleIcon onPress={() => scrollToY(SECTION_TOP.testimonials)} />
       </View>
     </View>
   );
@@ -128,32 +132,64 @@ type ColumnProps = {
 };
 
 function CategoryColumn({ category, left, active, onActivate, onDeactivate }: ColumnProps) {
+  const { pressed, focusVisible, handlers } = useInteraction();
+
+  // The two states differ in ground colour, artwork and text position, so they
+  // are crossfaded rather than swapped outright: at rest the column shows its
+  // outlined number; brought forward it floods with the brand colour as the
+  // photo fades in and the title and pill travel down the panel.
+  const open = useToggleAnimation(active, 260);
+  const fade = (from: string, to: string) =>
+    open.interpolate({ inputRange: [0, 1], outputRange: [from, to] });
+  const move = (from: number, to: number) =>
+    open.interpolate({ inputRange: [0, 1], outputRange: [from, to] });
+
   return (
     <Pressable
-      onHoverIn={onActivate}
-      onHoverOut={onDeactivate}
+      onHoverIn={() => {
+        handlers.onHoverIn();
+        onActivate();
+      }}
+      onHoverOut={() => {
+        handlers.onHoverOut();
+        onDeactivate();
+      }}
+      onPressIn={handlers.onPressIn}
+      onPressOut={handlers.onPressOut}
       onPress={active ? onDeactivate : onActivate}
+      onFocus={() => {
+        handlers.onFocus();
+        onActivate();
+      }}
+      onBlur={() => {
+        handlers.onBlur();
+        onDeactivate();
+      }}
       accessibilityRole="button"
-      accessibilityLabel={category.title}
-      style={[
-        styles.panel,
-        { left, backgroundColor: active ? category.color : colors.panelBg },
-      ]}
+      accessibilityLabel={category.title + ' \u2014 view more'}
+      accessibilityState={{ expanded: active }}
+      style={[styles.panel, { left }, clickable, focusVisible && focusRing(colors.accent, -3)]}
     >
-      {active ? (
-        <Image
-          source={category.image}
-          resizeMode="cover"
-          style={[styles.art, category.art]}
-          accessibilityIgnoresInvertColors
-        />
-      ) : (
-        <Svg
-          pointerEvents="none"
-          style={[styles.number, { top: NUMBER_INK_TOP - NUMBER_INK_OFFSET }]}
-          width={216}
-          height={100}
-        >
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: fade(colors.panelBg, category.color) }]}
+      />
+
+      <Animated.Image
+        source={category.image}
+        resizeMode="cover"
+        style={[styles.art, category.art, { opacity: open }]}
+        accessibilityIgnoresInvertColors
+      />
+
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.number,
+          { top: NUMBER_INK_TOP - NUMBER_INK_OFFSET, opacity: move(1, 0) },
+        ]}
+      >
+        <Svg width={216} height={100}>
           <SvgText
             x={0}
             y={NUMBER_SVG_BASELINE_Y}
@@ -166,30 +202,38 @@ function CategoryColumn({ category, left, active, onActivate, onDeactivate }: Co
             {category.number}
           </SvgText>
         </Svg>
-      )}
+      </Animated.View>
 
-      <Text
+      <Animated.Text
         style={[
           styles.title,
           {
-            top: (active ? TITLE_INK_TOP_ACTIVE : TITLE_INK_TOP) - TITLE_INK_OFFSET,
-            color: active ? '#ffffff' : '#000000',
+            top: move(TITLE_INK_TOP - TITLE_INK_OFFSET, TITLE_INK_TOP_ACTIVE - TITLE_INK_OFFSET),
+            color: fade('#000000', '#ffffff'),
           },
         ]}
       >
         {category.title}
-      </Text>
+      </Animated.Text>
 
-      <View
+      <Animated.View
         style={[
           styles.pill,
-          active
-            ? { top: BUTTON_TOP_ACTIVE, left: 10, width: 185, height: 57, borderColor: '#ffffff' }
-            : { top: BUTTON_TOP, left: 12, width: 144, height: 53, borderColor: '#000000', backgroundColor: '#ffffff' },
+          {
+            top: move(BUTTON_TOP, BUTTON_TOP_ACTIVE),
+            left: move(12, 10),
+            width: move(144, 185),
+            height: move(53, 57),
+            borderColor: fade('#000000', '#ffffff'),
+            backgroundColor: fade('#ffffff', 'rgba(255,255,255,0)'),
+            transform: [{ scale: pressed ? 0.97 : 1 }],
+          },
         ]}
       >
-        <Text style={[styles.pillLabel, { color: active ? '#ffffff' : '#000000' }]}>View More</Text>
-      </View>
+        <Animated.Text style={[styles.pillLabel, { color: fade('#000000', '#ffffff') }]}>
+          View More
+        </Animated.Text>
+      </Animated.View>
     </Pressable>
   );
 }

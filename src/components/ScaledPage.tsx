@@ -1,7 +1,29 @@
-import React, { PropsWithChildren, useCallback, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Dimensions, LayoutChangeEvent, ScrollView, StyleSheet, View } from 'react-native';
 
 import { FRAME } from '../theme';
+
+/**
+ * Lets anything inside the page jump to a position on the design canvas — the
+ * nav links and the scroll-cue chevrons, which are affordances that have to
+ * actually move the page to mean anything. Callers pass design pixels; the
+ * scale conversion happens here so they never have to know about it.
+ */
+type PageScroll = { scrollToY: (designY: number) => void };
+
+const PageScrollCtx = createContext<PageScroll>({ scrollToY: () => {} });
+
+export function usePageScroll(): PageScroll {
+  return useContext(PageScrollCtx);
+}
 
 /**
  * The site is authored on a fixed 1440-wide canvas of stacked sections. This
@@ -26,6 +48,8 @@ export type ScaledPageProps = PropsWithChildren<{
 
 export function ScaledPage({ children, contentHeight, backgroundColor }: ScaledPageProps) {
   const [width, setWidth] = useState(initialWidth);
+  const scrollRef = useRef<ScrollView>(null);
+  const scaleRef = useRef(1);
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     const next = event.nativeEvent.layout.width;
@@ -40,17 +64,23 @@ export function ScaledPage({ children, contentHeight, backgroundColor }: ScaledP
   }, []);
 
   const scale = width / FRAME.width;
+  scaleRef.current = scale;
+
+  const scrollToY = useCallback((designY: number) => {
+    scrollRef.current?.scrollTo({ y: designY * scaleRef.current, animated: true });
+  }, []);
+  const pageScroll = useMemo(() => ({ scrollToY }), [scrollToY]);
 
   return (
     <View style={[styles.viewport, { backgroundColor }]} onLayout={handleLayout}>
-      <ScrollView contentContainerStyle={{ height: contentHeight * scale }}>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ height: contentHeight * scale }}>
         <View
           style={[
             styles.canvas,
             { height: contentHeight, transform: [{ scale }], transformOrigin: 'top left' },
           ]}
         >
-          {children}
+          <PageScrollCtx.Provider value={pageScroll}>{children}</PageScrollCtx.Provider>
         </View>
       </ScrollView>
     </View>
