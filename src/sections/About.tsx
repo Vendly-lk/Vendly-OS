@@ -5,7 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BulletIcon } from '../components/icons/BulletIcon';
 import { ScrollCue } from '../components/ScrollCue';
 import { usePageScroll } from '../components/ScaledPage';
-import { SECTION_TOP } from '../layout';
 import { TopBar } from '../components/TopBar';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts, type } from '../theme';
@@ -40,7 +39,7 @@ const BULLETS = [
 ] as const;
 
 export function About() {
-  const { scrollToY } = usePageScroll();
+  const { scrollToSection } = usePageScroll();
   const { theme, themeName } = useTheme();
   const plate =
     themeName === 'dark'
@@ -84,7 +83,7 @@ export function About() {
       </View>
 
       <View style={styles.scrollCue}>
-        <ScrollCue onPress={() => scrollToY(SECTION_TOP.categories)} label="Scroll to categories" />
+        <ScrollCue onPress={() => scrollToSection('categories')} label="Scroll to categories" />
       </View>
 
       <TopBar />

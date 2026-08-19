@@ -14,13 +14,20 @@ npm run web
 
 ## How it is built
 
-Every screen is authored on a fixed **1440-wide** canvas. `ScaledPage`
-(`src/components/ScaledPage.tsx`) scales that canvas to the viewport width and
-scrolls it vertically, rather than re-flowing the composition responsively — so
-every component positions itself in raw design pixels and the numbers in the
-source can be read straight off the design.
+Every screen is authored on a fixed **1440-wide** canvas, and each one is a whole
+page of the design rather than a band of a longer document. `ScaledPage`
+(`src/components/ScaledPage.tsx`) gives each page exactly one screenful and
+scales it to *fit* — `min(vw / 1440, vh / pageHeight)` — so a whole page is
+visible at once and scrolling moves between pages rather than through one.
+Paging is on, so a scroll settles on a page instead of between two.
 
-Layout is refined on both `onLayout` and a `Dimensions` `change` listener, so it
+Fitting matters more than it sounds: scaling to viewport *width* blows the 1440
+canvas up by a third on a 1920 display and pushes the lower half of every page —
+the hero's video included — off the bottom edge.
+
+The canvas is never re-flowed, so every component still positions itself in raw
+design pixels and the numbers in the source can be read straight off the design.
+The fit is refined on both `onLayout` and a `Dimensions` `change` listener, so it
 re-fits on a live browser resize or device rotation and not only on first paint.
 
 ### Sections

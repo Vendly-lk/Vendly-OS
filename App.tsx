@@ -23,8 +23,7 @@ import { Testimonials, TESTIMONIALS_HEIGHT } from './src/sections/Testimonials';
 import { SignIn, SIGNIN_HEIGHT } from './src/screens/SignIn';
 import { ThemeProvider, useTheme } from './src/ThemeContext';
 
-const HOME_HEIGHT =
-  HERO_HEIGHT + ABOUT_HEIGHT + CATEGORIES_HEIGHT + TESTIMONIALS_HEIGHT + FOOTER_HEIGHT;
+
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -64,21 +63,35 @@ function Site() {
 
   if (route === 'signin') {
     return (
-      <ScaledPage contentHeight={SIGNIN_HEIGHT} backgroundColor="#a2aeb8">
-        <SignIn />
-        <BackToSite onPress={() => navigate('home')} />
-      </ScaledPage>
+      <ScaledPage
+        backgroundColor="#a2aeb8"
+        sections={[
+          {
+            id: 'hero',
+            height: SIGNIN_HEIGHT,
+            content: (
+              <>
+                <SignIn />
+                <BackToSite onPress={() => navigate('home')} />
+              </>
+            ),
+          },
+        ]}
+      />
     );
   }
 
   return (
-    <ScaledPage contentHeight={HOME_HEIGHT} backgroundColor={theme.pageBg}>
-      <Hero />
-      <About />
-      <Categories />
-      <Testimonials />
-      <GrowFooter />
-    </ScaledPage>
+    <ScaledPage
+      backgroundColor={theme.pageBg}
+      sections={[
+        { id: 'hero', height: HERO_HEIGHT, content: <Hero /> },
+        { id: 'about', height: ABOUT_HEIGHT, content: <About /> },
+        { id: 'categories', height: CATEGORIES_HEIGHT, content: <Categories /> },
+        { id: 'testimonials', height: TESTIMONIALS_HEIGHT, content: <Testimonials /> },
+        { id: 'footer', height: FOOTER_HEIGHT, content: <GrowFooter /> },
+      ]}
+    />
   );
 }
 

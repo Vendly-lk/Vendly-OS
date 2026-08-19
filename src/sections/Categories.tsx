@@ -5,7 +5,6 @@ import Svg, { Text as SvgText } from 'react-native-svg';
 import { ChevronCircleIcon } from '../components/icons/ChevronCircleIcon';
 import { usePageScroll } from '../components/ScaledPage';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
-import { SECTION_TOP } from '../layout';
 import { colors, fonts } from '../theme';
 
 /**
@@ -101,7 +100,7 @@ const CATEGORIES: Category[] = [
 
 export function Categories() {
   const [active, setActive] = useState<string | null>(null);
-  const { scrollToY } = usePageScroll();
+  const { scrollToSection } = usePageScroll();
 
   return (
     <View style={styles.section}>
@@ -117,7 +116,7 @@ export function Categories() {
       ))}
 
       <View style={styles.chevron}>
-        <ChevronCircleIcon onPress={() => scrollToY(SECTION_TOP.testimonials)} />
+        <ChevronCircleIcon onPress={() => scrollToSection('testimonials')} />
       </View>
     </View>
   );

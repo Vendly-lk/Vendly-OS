@@ -4,7 +4,6 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePageScroll } from '../components/ScaledPage';
 import { ScrollCue } from '../components/ScrollCue';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
-import { SECTION_TOP } from '../layout';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
 
@@ -31,7 +30,7 @@ const QUOTES = [
 
 export function Testimonials() {
   const { theme } = useTheme();
-  const { scrollToY } = usePageScroll();
+  const { scrollToSection } = usePageScroll();
   const [activeSlide, setActiveSlide] = useState(1);
 
   return (
@@ -66,7 +65,7 @@ export function Testimonials() {
       </View>
 
       <View style={styles.cue}>
-        <ScrollCue onPress={() => scrollToY(SECTION_TOP.footer)} label="Scroll to newsletter" />
+        <ScrollCue onPress={() => scrollToSection('footer')} label="Scroll to newsletter" />
       </View>
     </View>
   );

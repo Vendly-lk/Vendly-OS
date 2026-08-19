@@ -4,7 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { usePageScroll } from './ScaledPage';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
-import { SECTION_TOP } from '../layout';
+
 import { useNavigation } from '../Navigation';
 import { useTheme } from '../ThemeContext';
 import { NAV, colors, fonts, type } from '../theme';
@@ -36,7 +36,7 @@ export function TopBar({
 }: TopBarProps) {
   const { theme, themeName, toggleTheme } = useTheme();
   const { navigate } = useNavigation();
-  const { scrollToY } = usePageScroll();
+  const { scrollToSection } = usePageScroll();
   const isDark = themeName === 'dark';
   const goSignIn = onLoginPress ?? (() => navigate('signin'));
   const goStart = onStartForFreePress ?? (() => navigate('signin'));
@@ -50,7 +50,7 @@ export function TopBar({
    * inventing destinations for them would be inventing the site.
    */
   const jumpTo = (label: string) => {
-    if (label === 'Why Vendly ?') scrollToY(SECTION_TOP.about);
+    if (label === 'Why Vendly ?') scrollToSection('about');
   };
 
   return (
@@ -63,7 +63,7 @@ export function TopBar({
       />
       <Text style={[styles.wordmark, { color: theme.text }]} accessibilityLabel="Vendly.lk">
         endly.
-        <Text style={[styles.wordmark, { color: colors.accent }]}>lk</Text>
+        <Text style={{ color: colors.accent }}>lk</Text>
       </Text>
 
       {NAV.links.map(({ label, left }) => (

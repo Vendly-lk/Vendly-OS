@@ -14,7 +14,6 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { usePageScroll } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
-import { SECTION_TOP } from '../layout';
 import { useNavigation } from '../Navigation';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
@@ -39,10 +38,10 @@ const HEADLINE_INK_OFFSET = 17;
 export function Hero() {
   const { theme, themeName } = useTheme();
   const { navigate } = useNavigation();
-  const { scrollToY } = usePageScroll();
+  const { scrollToSection } = usePageScroll();
   const isDark = themeName === 'dark';
   const [reduceMotion, setReduceMotion] = useState(false);
-  const [visible, setVisible] = useState(AppState.currentState === 'active');
+  const [visible, setVisible] = useState(() => AppState.currentState !== 'background');
 
   // A 10s loop that plays on its own is exactly what "reduce motion" is for.
   useEffect(() => {
@@ -60,8 +59,12 @@ export function Hero() {
   // Browsers stop background media to save power, and asking a hidden video to
   // play just races that and rejects. Following the page's own visibility keeps
   // the loop off while nobody is watching it.
+  //
+  // The test is "not backgrounded" rather than "is active" deliberately: if a
+  // platform reports some third state, the video should still play. Failing the
+  // other way would leave the hero permanently frozen on its poster.
   useEffect(() => {
-    const sub = AppState.addEventListener('change', state => setVisible(state === 'active'));
+    const sub = AppState.addEventListener('change', state => setVisible(state !== 'background'));
     return () => sub.remove();
   }, []);
 
@@ -119,7 +122,7 @@ export function Hero() {
         onPress={() => navigate('signin')}
       />
 
-      <WhyLink color={theme.text} onPress={() => scrollToY(SECTION_TOP.about)} />
+      <WhyLink color={theme.text} onPress={() => scrollToSection('about')} />
 
       <TopBar />
     </View>
