@@ -7,6 +7,7 @@ import { Arimo_400Regular } from '@expo-google-fonts/arimo';
 import { BeVietnamPro_700Bold } from '@expo-google-fonts/be-vietnam-pro';
 import { Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import { Outfit_400Regular, Outfit_700Bold } from '@expo-google-fonts/outfit';
+import { RubikWetPaint_400Regular } from '@expo-google-fonts/rubik-wet-paint';
 import { Suwannaphum_400Regular } from '@expo-google-fonts/suwannaphum';
 import { TenaliRamakrishna_400Regular } from '@expo-google-fonts/tenali-ramakrishna';
 import { VarelaRound_400Regular } from '@expo-google-fonts/varela-round';
@@ -16,7 +17,13 @@ import { ScaledPage } from './src/components/ScaledPage';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from './src/interaction';
 import { NavigationProvider, Route, useNavigation } from './src/Navigation';
 import { About, ABOUT_HEIGHT } from './src/sections/About';
+import { AiEngine, AI_HEIGHT } from './src/sections/AiEngine';
 import { Categories, CATEGORIES_HEIGHT } from './src/sections/Categories';
+import { Channels, CHANNELS_HEIGHT } from './src/sections/Channels';
+import { Coverage, COVERAGE_HEIGHT } from './src/sections/Coverage';
+import { HowItWorks, HOWITWORKS_HEIGHT } from './src/sections/HowItWorks';
+import { Pricing, PRICING_HEIGHT } from './src/sections/Pricing';
+import { Stats, STATS_HEIGHT } from './src/sections/Stats';
 import { GrowFooter, FOOTER_HEIGHT } from './src/sections/GrowFooter';
 import { Hero, HERO_HEIGHT } from './src/sections/Hero';
 import { Testimonials, TESTIMONIALS_HEIGHT } from './src/sections/Testimonials';
@@ -33,6 +40,7 @@ export default function App() {
     Inter_700Bold,
     Outfit_400Regular,
     Outfit_700Bold,
+    RubikWetPaint_400Regular,
     Suwannaphum_400Regular,
     TenaliRamakrishna_400Regular,
     VarelaRound_400Regular,
@@ -87,7 +95,13 @@ function Site() {
       sections={[
         { id: 'hero', height: HERO_HEIGHT, content: <Hero /> },
         { id: 'about', height: ABOUT_HEIGHT, content: <About /> },
+        { id: 'channels', height: CHANNELS_HEIGHT, content: <Channels /> },
+        { id: 'howItWorks', height: HOWITWORKS_HEIGHT, content: <HowItWorks /> },
         { id: 'categories', height: CATEGORIES_HEIGHT, content: <Categories /> },
+        { id: 'stats', height: STATS_HEIGHT, content: <Stats /> },
+        { id: 'ai', height: AI_HEIGHT, content: <AiEngine /> },
+        { id: 'coverage', height: COVERAGE_HEIGHT, content: <Coverage /> },
+        { id: 'pricing', height: PRICING_HEIGHT, content: <Pricing /> },
         { id: 'testimonials', height: TESTIMONIALS_HEIGHT, content: <Testimonials /> },
         { id: 'footer', height: FOOTER_HEIGHT, content: <GrowFooter /> },
       ]}

@@ -100,6 +100,8 @@ export const fonts = {
   ui: 'Inter_400Regular',
   uiBold: 'Inter_700Bold',
   display: 'Outfit_700Bold',
+  /** The GO Back disc on the category pages. */
+  splash: 'RubikWetPaint_400Regular',
 } as const;
 
 /** Line heights match what the design resolves "normal" leading to (~1.45x). */

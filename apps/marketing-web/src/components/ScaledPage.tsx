@@ -7,7 +7,16 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Dimensions, LayoutChangeEvent, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Dimensions,
+  LayoutChangeEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { FRAME } from '../theme';
 import { SectionId } from '../layout';
@@ -35,7 +44,27 @@ export function usePageScroll(): PageScroll {
   return useContext(PageScrollCtx);
 }
 
-function initialViewport() {
+/**
+ * Which page the reader is actually on. Sections use it to run their entrance
+ * when they are arrived at rather than when they mount, since every page is
+ * mounted from the start.
+ */
+const ActiveSectionCtx = createContext<SectionId | null>(null);
+
+export function useIsSectionActive(id: SectionId): boolean {
+  return useContext(ActiveSectionCtx) === id;
+}
+
+/**
+ * On web the document's own viewport is the authority. `Dimensions` has been
+ * observed to hand back a stale size at mount, and when that happens the whole
+ * page renders at the wrong scale until something else forces a re-measure —
+ * which `onLayout` will not always do, since it rides on a ResizeObserver.
+ */
+function readViewport() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.innerWidth > 0) {
+    return { width: window.innerWidth, height: window.innerHeight };
+  }
   const { width, height } = Dimensions.get('window');
   return {
     width: width > 0 ? width : FRAME.width,
@@ -56,7 +85,7 @@ export type ScaledPageProps = {
 };
 
 export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
-  const [viewport, setViewport] = useState(initialViewport);
+  const [viewport, setViewport] = useState(readViewport);
   const scrollRef = useRef<ScrollView>(null);
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
@@ -72,16 +101,47 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
     );
   }, []);
 
-  React.useEffect(() => {
-    const sub = Dimensions.addEventListener('change', ({ window }) => {
-      if (window.width > 0 && window.height > 0) {
-        setViewport({ width: window.width, height: window.height });
-      }
-    });
-    return () => sub.remove();
+  const applyViewport = useCallback((next: { width: number; height: number }) => {
+    setViewport(prev =>
+      (Math.abs(prev.width - next.width) < 0.5 && Math.abs(prev.height - next.height) < 0.5) ||
+      next.width <= 0 ||
+      next.height <= 0
+        ? prev
+        : next,
+    );
   }, []);
 
+  React.useEffect(() => {
+    const sub = Dimensions.addEventListener('change', ({ window }) =>
+      applyViewport({ width: window.width, height: window.height }),
+    );
+    return () => sub.remove();
+  }, [applyViewport]);
+
+  // Third signal, and the only authoritative one on web: the document itself.
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onResize = () => applyViewport(readViewport());
+    window.addEventListener('resize', onResize);
+    onResize();
+    return () => window.removeEventListener('resize', onResize);
+  }, [applyViewport]);
+
   const ids = useMemo(() => sections.map(section => section.id), [sections]);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, layoutMeasurement } = event.nativeEvent;
+      const page = layoutMeasurement.height;
+      if (page <= 0) return;
+      // Count a page as arrived at once it covers most of the viewport, so the
+      // entrance fires as it settles rather than as it starts to appear.
+      const next = Math.round(contentOffset.y / page);
+      setActiveIndex(prev => (prev === next ? prev : next));
+    },
+    [],
+  );
 
   const scrollToSection = useCallback(
     (id: SectionId) => {
@@ -101,6 +161,8 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
           ref={scrollRef}
           pagingEnabled={sections.length > 1}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={handleScroll}
         >
           {sections.map(section => (
             <View
@@ -123,7 +185,9 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
                   },
                 ]}
               >
-                {section.content}
+                <ActiveSectionCtx.Provider value={ids[activeIndex] ?? null}>
+                  {section.content}
+                </ActiveSectionCtx.Provider>
               </View>
             </View>
           ))}

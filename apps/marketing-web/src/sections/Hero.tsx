@@ -10,8 +10,10 @@ import {
   View,
 } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import Svg, { Path } from 'react-native-svg';
 
-import { usePageScroll } from '../components/ScaledPage';
+import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
+import { usePageScroll, useIsSectionActive } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { useNavigation } from '../Navigation';
@@ -39,6 +41,7 @@ export function Hero() {
   const { theme, themeName } = useTheme();
   const { navigate } = useNavigation();
   const { scrollToSection } = usePageScroll();
+  const onScreen = useIsSectionActive('hero');
   const isDark = themeName === 'dark';
   const [reduceMotion, setReduceMotion] = useState(false);
   const [visible, setVisible] = useState(() => AppState.currentState !== 'background');
@@ -101,28 +104,31 @@ export function Hero() {
         />
       ) : null}
 
-      <Text style={[styles.headline, { top: HEADLINE_INK_TOP - HEADLINE_INK_OFFSET, color: theme.text }]}>
-        Build Your Empire
-      </Text>
-      <Text
-        style={[
-          styles.headline,
-          {
-            top: HEADLINE_INK_TOP + HEADLINE_LINE_STEP - HEADLINE_INK_OFFSET,
-            color: isDark ? colors.accent : theme.text,
-          },
-        ]}
-      >
-        Today!
-      </Text>
+      <Reveal visible={onScreen}>
+        <Text
+          style={[styles.headline, { top: HEADLINE_INK_TOP - HEADLINE_INK_OFFSET, color: theme.text }]}
+        >
+          Build Your Empire
+        </Text>
+      </Reveal>
+      <Reveal visible={onScreen} delay={REVEAL_STAGGER}>
+        <Text
+          style={[
+            styles.headline,
+            {
+              top: HEADLINE_INK_TOP + HEADLINE_LINE_STEP - HEADLINE_INK_OFFSET,
+              color: isDark ? colors.accent : theme.text,
+            },
+          ]}
+        >
+          Today!
+        </Text>
+      </Reveal>
 
-      <HeroCta
-        bg={theme.ctaBg}
-        label={theme.ctaLabel}
-        onPress={() => navigate('signin')}
-      />
-
-      <WhyLink color={theme.text} onPress={() => scrollToSection('about')} />
+      <Reveal visible={onScreen} delay={REVEAL_STAGGER * 2}>
+        <HeroCta bg={theme.ctaBg} label={theme.ctaLabel} onPress={() => navigate('signin')} />
+        <WhyLink color={theme.text} onPress={() => scrollToSection('about')} />
+      </Reveal>
 
       <TopBar />
     </View>
@@ -164,31 +170,65 @@ function HeroCta({ bg, label, onPress }: { bg: string; label: string; onPress: (
   );
 }
 
+/** Light-on-dark and dark-on-light both need the same faint wash on hover. */
+function withAlpha(hex: string, alpha: number) {
+  const n = hex.replace('#', '');
+  const v = n.length === 3 ? n.split('').map(c => c + c).join('') : n;
+  const r = parseInt(v.slice(0, 2), 16);
+  const g = parseInt(v.slice(2, 4), 16);
+  const b = parseInt(v.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * The secondary action, paired with the filled one the way the reference site
+ * pairs its two: a filled pill for the primary, an outlined pill with a chevron
+ * for the "tell me more" beside it. The design leaves this as bare text, which
+ * reads as a footnote rather than the alternative route it is.
+ */
 function WhyLink({ color, onPress }: { color: string; onPress: () => void }) {
   const { hovered, pressed, focusVisible, highlighted, handlers } = useInteraction();
   const grow = useToggleAnimation(highlighted);
 
   return (
-    <Pressable
-      accessibilityRole="link"
-      onPress={onPress}
-      {...handlers}
-      style={[styles.whyLink, clickable, focusVisible && focusRing(color, 3)]}
+    <Animated.View
+      style={[
+        styles.whyLink,
+        {
+          transform: [
+            { translateY: grow.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
+          ],
+        },
+      ]}
     >
-      <Text style={[styles.whyLabel, { color, opacity: pressed ? 0.6 : 1 }]}>
-        Why We Build Vendly
-      </Text>
-      <Animated.View
+      <Pressable
+        accessibilityRole="link"
+        onPress={onPress}
+        {...handlers}
         style={[
-          styles.whyUnderline,
+          styles.whyPill,
+          clickable,
           {
-            backgroundColor: color,
-            transform: [{ scaleX: grow }],
-            opacity: hovered || focusVisible ? 1 : 0,
+            borderColor: color,
+            backgroundColor: hovered ? withAlpha(color, 0.1) : 'transparent',
+            opacity: pressed ? 0.7 : 1,
           },
+          focusVisible && focusRing(color, 3),
         ]}
-      />
-    </Pressable>
+      >
+        <Text style={[styles.whyLabel, { color }]}>Why We Build Vendly</Text>
+        <Svg width={17} height={17} viewBox="0 0 24 24">
+          <Path
+            d="M9 6l6 6-6 6"
+            fill="none"
+            stroke={color}
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -232,8 +272,17 @@ const styles = StyleSheet.create({
   },
   whyLink: {
     position: 'absolute',
-    left: 282.5,
-    top: 906,
+    left: 227,
+    top: 899,
+  },
+  whyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    height: 51,
+    paddingHorizontal: 24,
+    borderRadius: 56,
+    borderWidth: 2,
   },
   whyLabel: {
     fontFamily: fonts.cta,

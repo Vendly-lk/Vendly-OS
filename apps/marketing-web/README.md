@@ -56,6 +56,40 @@ stands in wherever the video cannot play. Playback is skipped entirely when the
 OS asks for reduced motion — a 10s loop that starts on its own is exactly what
 that setting is for — and the still is shown instead.
 
+### The footer page
+
+Built from the design's own CSS for this frame, which ships as two variants,
+"Desktop - 7" (dark) and "Desktop - 9" (light). Where they agree the geometry is
+shared; where they differ only in colour, the palette switches.
+
+They also disagree on the footer link positions, and the light variant carries a
+literal "SL Flag l Sin" text placeholder with no logo and no social icons. Rather
+than ship a footer that loses its logo and socials when the theme flips, the dark
+variant's layout is used for both and only its colours change.
+
+The two decorative shapes behind the headline are **rings, not discs**: Figma
+draws them as 790px ellipses with an arc ratio of 60%, so the hole sits at 60% of
+the radius. They are stroked circles — the stroke is the 158px band — with the
+gradient pinned in user space so it spans the full height. Each theme places them
+differently: `(-410, 141)` and `(1045, 141)` on dark, `(-395, 123)` and
+`(1045, 118)` on light.
+
+The crowd render is drawn at its own **1920 x 957** pixel size at `(-240, 625)`
+and never scaled — the earlier build used a 93KB JPEG re-encode of it, which is
+what made it look soft. It is now the original 1.75MB PNG at 1:1.
+
+### Testimonials
+
+Rebuilt rather than traced. The quotes are the design's own; no names, faces,
+roles or star ratings are attached to them, because the source carries none and
+inventing them would be manufacturing endorsements from people who do not exist.
+The card, the quote mark and the emphasis carry the section instead, and real
+attribution can drop into the space under each quote when there is some.
+
+One card is live at a time — full contrast and an accent rule while its
+neighbours recede — and the arrows, the dots and the cards themselves all drive
+that one piece of state.
+
 ### Theming
 
 The design ships light and dark variants of every frame, and the nav carries a
@@ -63,6 +97,10 @@ sun/moon toggle that drives them. Both are implemented: grounds, text, the CTA
 pill (which inverts), and the About gradient plate — pink-to-green on dark,
 red-to-orange on light — all flip together. "Today!" picks up the accent blue on
 dark exactly as the design shows.
+
+The About frame hangs a 1440 x 293 plate with a 102px corner radius at y = -182,
+so its bottom corners curve into the top of the frame. It is not reproduced: it
+read as a stray coloured band across the seam in both themes.
 
 ### Interaction
 

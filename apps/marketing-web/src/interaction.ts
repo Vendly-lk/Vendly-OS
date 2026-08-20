@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, Platform } from 'react-native';
 
 /**
  * Interaction primitives shared by every control on the site.
@@ -109,4 +109,26 @@ export function useToggleAnimation(on: boolean, duration = 180) {
   }
 
   return value;
+}
+
+/**
+ * Whether the OS asks for reduced motion. Entrance animations are decoration —
+ * when this is on they are skipped entirely and the content is simply there.
+ */
+export function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then(on => {
+      if (!cancelled) setReduced(on);
+    });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduced);
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, []);
+
+  return reduced;
 }

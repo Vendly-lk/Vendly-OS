@@ -1,22 +1,21 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { BulletIcon } from '../components/icons/BulletIcon';
 import { ScrollCue } from '../components/ScrollCue';
-import { usePageScroll } from '../components/ScaledPage';
+import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
+import { usePageScroll, useIsSectionActive } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
 import { useTheme } from '../ThemeContext';
-import { colors, fonts, type } from '../theme';
+import { fonts, type } from '../theme';
 
 /**
  * "About us / Risk of fake orders" — Figma frame "Desktop - 3" (node 27:1324),
  * the one screen in this project taken from Figma directly rather than the PDF.
  *
- * The gradient plate is a 1440 x 293 rounded rectangle hung at y = -182, so only
- * its lower ~111px and its bottom corner radii sit inside the frame; it reads as
- * the colour band at the seam with the section above. Its colours flip with the
- * theme: pink-to-green on dark, red-to-orange on light.
+ * The design hangs a 1440 x 293 rounded plate at y = -182 so its bottom corners
+ * curve into the top of the frame. It is deliberately not reproduced: it read as
+ * a stray coloured band across the seam in both themes.
  *
  * Copy rows are positioned individually rather than as one flowing block. In
  * Figma the copy is a single text layer whose bullet rows are indented with
@@ -40,32 +39,28 @@ const BULLETS = [
 
 export function About() {
   const { scrollToSection } = usePageScroll();
-  const { theme, themeName } = useTheme();
-  const plate =
-    themeName === 'dark'
-      ? [colors.gradientFrom, colors.gradientTo]
-      : ['#ff0000', '#ffba00'];
+  const onScreen = useIsSectionActive('about');
+  const { theme } = useTheme();
 
   return (
     <View style={[styles.section, { backgroundColor: theme.surface }]}>
-      <LinearGradient
-        colors={plate as [string, string]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.plate}
-      />
-
       <View style={styles.block}>
-        <Text style={[styles.eyebrow, { color: theme.text }]}>About us</Text>
+        <Reveal visible={onScreen}>
+          <Text style={[styles.eyebrow, { color: theme.text }]}>About us</Text>
+        </Reveal>
 
-        <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>
-          Risk of fake orders
-        </Text>
+        <Reveal visible={onScreen} delay={REVEAL_STAGGER}>
+          <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>
+            Risk of fake orders
+          </Text>
+        </Reveal>
 
+        <Reveal visible={onScreen} delay={REVEAL_STAGGER * 2}>
         <Text style={[styles.intro, { color: theme.textMuted }]}>
           Vendly is a powerful fraud detection tool for your business that scans and accurately
           verifies your orders
         </Text>
+        </Reveal>
 
         {BULLETS.map(({ text, textTop, icon }) => (
           <View key={text}>
@@ -96,14 +91,6 @@ const styles = StyleSheet.create({
     width: 1440,
     height: ABOUT_HEIGHT,
     overflow: 'hidden',
-  },
-  plate: {
-    position: 'absolute',
-    left: 0,
-    top: -182,
-    width: 1440,
-    height: 293,
-    borderRadius: 102,
   },
 
   block: {
