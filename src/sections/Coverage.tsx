@@ -1,39 +1,26 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
-
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
 import { useIsSectionActive } from '../components/ScaledPage';
 import { useTheme } from '../ThemeContext';
-import { colors, fonts } from '../theme';
+import { SriLankaMap } from '../components/SriLankaMap';
+import { fonts } from '../theme';
 import { GUTTER, SectionHeading, SectionLead, styles as kit } from './kit';
 
 /**
- * The reference site closes its middle with "Grow around the world" over a map.
- * The equivalent here is smaller and more honest about the product: one island,
- * every courier, with the cities orders actually come from.
+ * "Every district, every courier" — the reference site's rotating globe, scoped
+ * to the one island this product actually operates on.
  *
- * The island is drawn as a rough silhouette rather than traced from survey data
- * — it is a decorative locator, and it is marked as such to assistive tech.
+ * The map itself is `SriLankaMap`: a lit, extruded relief of the real coastline
+ * on web, and the same coastline drawn flat on native. Both read the same
+ * geography, so they cannot drift apart.
  */
 
 export const COVERAGE_HEIGHT = 1024;
 
 const COURIERS = ['Koombiyo', 'PromptXpress', 'Domex', 'Aramex', 'DHL', 'SL Post'];
 
-/** Rough positions on the silhouette, in its own 300 x 560 space. */
-const CITIES = [
-  { name: 'Jaffna', x: 128, y: 52 },
-  { name: 'Anuradhapura', x: 132, y: 178 },
-  { name: 'Trincomalee', x: 208, y: 176 },
-  { name: 'Kandy', x: 158, y: 300 },
-  { name: 'Colombo', x: 78, y: 356 },
-  { name: 'Batticaloa', x: 232, y: 300 },
-  { name: 'Galle', x: 120, y: 494 },
-];
-
-const ISLAND =
-  'M150 8c26 0 44 22 52 48 9 30 26 52 34 84 9 34 20 62 22 96 2 33-6 62-14 92-9 34-18 66-38 96-16 24-36 44-58 44-24 0-44-22-58-48-16-30-24-64-28-98-4-36-2-70 6-104 8-32 22-58 34-88 10-26 18-50 26-74C136 26 140 8 150 8Z';
+const MAP = { left: 720, top: 150, width: 640, height: 740 };
 
 export function Coverage() {
   const { theme, themeName } = useTheme();
@@ -65,23 +52,17 @@ export function Coverage() {
       </Reveal>
 
       <Reveal visible={onScreen} delay={REVEAL_STAGGER * 3}>
-        <View style={styles.mapWrap} accessibilityLabel="Map of Sri Lanka with major cities">
-          <Svg width={300} height={560} viewBox="0 0 300 560">
-            <Path d={ISLAND} fill={land} stroke={coast} strokeWidth={2} />
-            {CITIES.map(city => (
-              <Circle key={city.name} cx={city.x} cy={city.y} r={6} fill={colors.accent} />
-            ))}
-          </Svg>
-          {CITIES.map(city => (
-            <Text
-              key={city.name}
-              style={[styles.city, { left: city.x + 16, top: city.y - 10, color: theme.textMuted }]}
-            >
-              {city.name}
-            </Text>
-          ))}
+        <View style={styles.mapWrap}>
+          <SriLankaMap width={MAP.width} height={MAP.height} />
         </View>
       </Reveal>
+
+      <Reveal visible={onScreen} delay={REVEAL_STAGGER * 4}>
+        <Text style={[styles.credit, { color: theme.textMuted }]}>
+          Coastline: geoBoundaries / OpenStreetMap (ODbL 1.0)
+        </Text>
+      </Reveal>
+
     </View>
   );
 }
@@ -108,14 +89,16 @@ const styles = StyleSheet.create({
   },
   mapWrap: {
     position: 'absolute',
-    left: 880,
-    top: 210,
-    width: 460,
-    height: 580,
+    left: MAP.left,
+    top: MAP.top,
+    width: MAP.width,
+    height: MAP.height,
   },
-  city: {
+  credit: {
     position: 'absolute',
+    left: MAP.left,
+    top: MAP.top + MAP.height + 14,
     fontFamily: fonts.ui,
-    fontSize: 15,
+    fontSize: 13,
   },
 });
