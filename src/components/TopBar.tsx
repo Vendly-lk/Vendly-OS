@@ -44,13 +44,13 @@ export function TopBar({
   const knobShift = useToggleAnimation(isDark, 220);
 
   /**
-   * "Why Vendly ?" is the one nav label with a section behind it, so it scrolls
-   * there. The other two are left inert on purpose: the design has no pricing
-   * screen, and its third label is literal placeholder text ("xxxxxxxxxxxx") —
-   * inventing destinations for them would be inventing the site.
+   * The third label is still inert: it is literal placeholder text
+   * ("xxxxxxxxxxxx") in the design, so there is nothing to point it at without
+   * inventing a page nobody asked for.
    */
   const jumpTo = (label: string) => {
     if (label === 'Why Vendly ?') scrollToSection('about');
+    if (label === 'Pricing') scrollToSection('pricing');
   };
 
   return (
