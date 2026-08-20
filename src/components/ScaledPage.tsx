@@ -56,6 +56,19 @@ export function useIsSectionActive(id: SectionId): boolean {
 }
 
 /**
+ * How far the page's own full-bleed canvas extends past the 1440 frame each
+ * section composes on — half the difference, since the frame sits centred.
+ * Chrome that wants to touch the viewport's true left/right edges (the nav
+ * bar) reads this to push itself out past the frame rather than stopping at
+ * the 1440 boundary the way ordinarily-positioned content does.
+ */
+const CanvasEdgeCtx = createContext(0);
+
+export function useCanvasEdgeInset(): number {
+  return useContext(CanvasEdgeCtx);
+}
+
+/**
  * On web the document's own viewport is the authority. `Dimensions` has been
  * observed to hand back a stale size at mount, and when that happens the whole
  * page renders at the wrong scale until something else forces a re-measure —
@@ -136,6 +149,8 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
 
   const ids = useMemo(() => sections.map(section => section.id), [sections]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(activeIndex);
+  activeIndexRef.current = activeIndex;
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -161,13 +176,51 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
 
   const pageScroll = useMemo(() => ({ scrollToSection }), [scrollToSection]);
 
+  // `pagingEnabled` compiles to CSS scroll-snap on web, which mishandles fast
+  // or repeated wheel gestures — a gesture can land between two snap points
+  // and read as "stuck". A manual wheel handler replaces the browser's own
+  // snap-scrolling with an explicit one-gesture-one-page rule: every wheel
+  // event moves exactly one page in the gesture's direction, and further
+  // wheel input is ignored until that transition finishes. Touch/trackpad
+  // drag paging on mobile is untouched — this only intercepts `wheel`.
+  const wheelLockRef = useRef(false);
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const node = scrollRef.current?.getScrollableNode?.() as HTMLElement | undefined;
+    if (!node) return;
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      if (wheelLockRef.current) return;
+      if (Math.abs(event.deltaY) < 2) return;
+
+      const direction = event.deltaY > 0 ? 1 : -1;
+      const nextIndex = Math.min(Math.max(activeIndexRef.current + direction, 0), ids.length - 1);
+      if (nextIndex === activeIndexRef.current) return;
+
+      // The real scroll position (via `handleScroll` below) stays the single
+      // source of truth for `activeIndex` — this only drives the animated
+      // scroll itself, so a stray gesture can never leave the index out of
+      // sync with what is actually on screen.
+      wheelLockRef.current = true;
+      scrollRef.current?.scrollTo({ y: nextIndex * viewportRef.current.height, animated: true });
+      setTimeout(() => {
+        wheelLockRef.current = false;
+      }, 650);
+    };
+
+    node.addEventListener('wheel', onWheel, { passive: false });
+    return () => node.removeEventListener('wheel', onWheel);
+  }, [ids]);
+
   return (
     <View style={[styles.viewport, { backgroundColor }]} onLayout={handleLayout}>
       <PageScrollCtx.Provider value={pageScroll}>
         <ScrollView
           ref={scrollRef}
           pagingEnabled={sections.length > 1}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator
           scrollEventThrottle={16}
           onScroll={handleScroll}
         >
@@ -214,7 +267,9 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
                     }}
                   >
                     <ActiveSectionCtx.Provider value={ids[activeIndex] ?? null}>
-                      {section.content}
+                      <CanvasEdgeCtx.Provider value={(canvasWidth - FRAME.width) / 2}>
+                        {section.content}
+                      </CanvasEdgeCtx.Provider>
                     </ActiveSectionCtx.Provider>
                   </View>
                 </View>

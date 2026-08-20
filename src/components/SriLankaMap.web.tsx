@@ -34,7 +34,6 @@ import {
 
 const LAND_TOP = '#0e5a8a';
 const LAND_SIDE = '#07304a';
-const SEA_PLATE = '#04101c';
 const MARKER = '#00b2ff';
 const ARC = '#7fd8ff';
 
@@ -120,16 +119,6 @@ function Island() {
         emissive={LAND_SIDE}
         emissiveIntensity={0.35}
       />
-    </mesh>
-  );
-}
-
-/** The dark water the island sits on, so the scene has a floor to catch light. */
-function Sea() {
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-      <circleGeometry args={[9, 64]} />
-      <meshStandardMaterial color={SEA_PLATE} roughness={1} metalness={0} />
     </mesh>
   );
 }
@@ -331,7 +320,6 @@ function Scene({
       {/* A cool kicker from behind, which is what gives the coast its rim. */}
       <pointLight position={[-6, 3, -6]} intensity={40} color={MARKER} distance={22} />
 
-      <Sea />
       <Island />
 
       {ROUTES.map(([a, b], index) =>
@@ -369,9 +357,6 @@ export function SriLankaMap({ width, height }: SriLankaMapProps) {
         position: 'relative',
         width,
         height,
-        borderRadius: 28,
-        overflow: 'hidden',
-        background: SEA_PLATE,
       }}
     >
       <Canvas
@@ -380,7 +365,8 @@ export function SriLankaMap({ width, height }: SriLankaMapProps) {
         shadows="percentage"
         dpr={[1, 2]}
         camera={{ position: [0, 7.5, 8.5], fov: 38 }}
-        gl={{ antialias: true }}
+        gl={{ antialias: true, alpha: true }}
+        style={{ background: 'transparent' }}
       >
         <Scene
           reducedMotion={reducedMotion}

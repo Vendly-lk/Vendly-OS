@@ -17,14 +17,14 @@ import { ScaledPage } from './src/components/ScaledPage';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from './src/interaction';
 import { NavigationProvider, Route, useNavigation } from './src/Navigation';
 import { About, ABOUT_HEIGHT } from './src/sections/About';
-import { AiBackdrop, AiEngine, AI_HEIGHT } from './src/sections/AiEngine';
+import { AiEngine, AI_HEIGHT } from './src/sections/AiEngine';
 import { Categories, CATEGORIES_HEIGHT } from './src/sections/Categories';
 import { Channels, CHANNELS_HEIGHT } from './src/sections/Channels';
 import { Coverage, COVERAGE_HEIGHT } from './src/sections/Coverage';
 import { HowItWorks, HOWITWORKS_HEIGHT } from './src/sections/HowItWorks';
 import { Pricing, PRICING_HEIGHT } from './src/sections/Pricing';
 import { Stats, STATS_HEIGHT } from './src/sections/Stats';
-import { GrowFooter, FOOTER_HEIGHT } from './src/sections/GrowFooter';
+import { FooterBackdrop, GrowFooter, FOOTER_HEIGHT } from './src/sections/GrowFooter';
 import { Hero, HERO_HEIGHT } from './src/sections/Hero';
 import { Testimonials, TESTIMONIALS_HEIGHT } from './src/sections/Testimonials';
 import { SignIn, SIGNIN_HEIGHT } from './src/screens/SignIn';
@@ -78,6 +78,7 @@ function Site() {
           {
             id: 'hero',
             height: SIGNIN_HEIGHT,
+            background: '#a2aeb8',
             content: (
               <>
                 <SignIn />
@@ -107,7 +108,7 @@ function Site() {
         // rail rather than as the rail floating on white.
         { id: 'categories', height: CATEGORIES_HEIGHT, content: <Categories />, background: colors.panelBg },
         { id: 'stats', height: STATS_HEIGHT, content: <Stats />, background: theme.surface },
-        { id: 'ai', height: AI_HEIGHT, content: <AiEngine />, backgroundNode: <AiBackdrop /> },
+        { id: 'ai', height: AI_HEIGHT, content: <AiEngine />, background: theme.surface },
         { id: 'coverage', height: COVERAGE_HEIGHT, content: <Coverage />, background: theme.surface },
         { id: 'pricing', height: PRICING_HEIGHT, content: <Pricing />, background: theme.surface },
         {
@@ -116,7 +117,13 @@ function Site() {
           content: <Testimonials />,
           background: theme.surface,
         },
-        { id: 'footer', height: FOOTER_HEIGHT, content: <GrowFooter />, background: theme.surface },
+        {
+          id: 'footer',
+          height: FOOTER_HEIGHT,
+          content: <GrowFooter />,
+          background: theme.surface,
+          backgroundNode: <FooterBackdrop />,
+        },
       ]}
     />
   );

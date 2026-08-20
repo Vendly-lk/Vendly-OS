@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
 import { useIsSectionActive } from '../components/ScaledPage';
+import { TopBar } from '../components/TopBar';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { useNavigation } from '../Navigation';
 import { useTheme } from '../ThemeContext';
@@ -89,6 +90,8 @@ export function Pricing() {
           />
         </Reveal>
       ))}
+
+      <TopBar />
     </View>
   );
 }
@@ -147,11 +150,13 @@ function PlanCard({
       <Text style={[styles.cadence, { color: muted }]}>{plan.cadence}</Text>
       <Text style={[styles.blurb, { color: muted }]}>{plan.blurb}</Text>
 
-      {plan.features.map((feature, i) => (
-        <Text key={feature} style={[styles.feature, { color: text, top: 300 + i * 30 }]}>
-          {feature}
-        </Text>
-      ))}
+      {plan.price === "Let's talk"
+        ? null
+        : plan.features.map((feature, i) => (
+            <Text key={feature} style={[styles.feature, { color: text, top: 300 + i * 30 }]}>
+              {feature}
+            </Text>
+          ))}
 
       <Pressable
         accessibilityRole="button"

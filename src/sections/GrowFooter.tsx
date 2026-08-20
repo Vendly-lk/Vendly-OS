@@ -1,17 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient as SvgGradient,
-  Path,
-  Rect,
-  Stop,
-} from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
 
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
-import { useIsSectionActive } from '../components/ScaledPage';
+import { useCanvasEdgeInset, useIsSectionActive } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { useTheme } from '../ThemeContext';
@@ -52,14 +45,20 @@ const RING = { size: 790, outer: 395, ratio: 0.6 } as const;
 const RING_BAND = RING.outer - RING.outer * RING.ratio;
 const RING_RADIUS = RING.outer - RING_BAND / 2;
 
+/**
+ * Positioned by `left`/`right` rather than a raw `left` offset for both, so each
+ * bleeds off its own true page edge instead of a fixed 1440px frame — the page's
+ * canvas is grown wider than 1440 on a wide viewport, and a `left: 1045` ring
+ * would then land in the middle of the ground rather than at the far edge.
+ */
 const RINGS = {
   dark: [
-    { left: -410, top: 141 },
-    { left: 1045, top: 141 },
+    { side: 'left', offset: -410, top: 141 },
+    { side: 'right', offset: -410, top: 141 },
   ],
   light: [
-    { left: -395, top: 123 },
-    { left: 1045, top: 118 },
+    { side: 'left', offset: -395, top: 123 },
+    { side: 'right', offset: -395, top: 118 },
   ],
 } as const;
 
@@ -108,10 +107,36 @@ const SOCIAL: { name: SocialName; left: number }[] = [
   { name: 'instagram', left: 1392 },
 ];
 
+/**
+ * The two rings, painted behind the whole full-bleed canvas rather than inside
+ * the 1440-wide content frame — so each one bleeds off the page's own true
+ * edge on every viewport width, not just the 1440 the design was drawn at.
+ */
+export function FooterBackdrop() {
+  const { themeName } = useTheme();
+  const dark = themeName === 'dark';
+
+  return (
+    <>
+      {(dark ? RINGS.dark : RINGS.light).map((ring, index) => (
+        <Ring
+          key={ring.side}
+          id={`ring-${index}`}
+          side={ring.side}
+          offset={ring.offset}
+          top={ring.top}
+          dark={dark}
+        />
+      ))}
+    </>
+  );
+}
+
 export function GrowFooter() {
   const { themeName } = useTheme();
   const onScreen = useIsSectionActive('footer');
   const dark = themeName === 'dark';
+  const canvasEdgeInset = useCanvasEdgeInset();
 
   const ink = dark ? '#ffffff' : '#000000';
   const hairline = dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
@@ -121,10 +146,6 @@ export function GrowFooter() {
 
   return (
     <View style={[styles.section, { backgroundColor: dark ? '#000000' : '#ffffff' }]}>
-      {(dark ? RINGS.dark : RINGS.light).map((ring, index) => (
-        <Ring key={ring.left} id={`ring-${index}`} left={ring.left} top={ring.top} dark={dark} />
-      ))}
-
       <Image
         source={require('../../assets/site/footer-crowd.png')}
         style={styles.crowd}
@@ -155,13 +176,14 @@ export function GrowFooter() {
         }
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
-        style={styles.footerPlate}
+        style={[styles.footerPlate, { left: -canvasEdgeInset, right: -canvasEdgeInset }]}
       />
 
       <Image
         source={require('../../assets/vendly-logo.png')}
         style={styles.footerMark}
         resizeMode="contain"
+        tintColor={ink}
         accessibilityIgnoresInvertColors
       />
       <Text style={styles.footerWordmark} accessibilityLabel="Vendly.lk">
@@ -176,19 +198,18 @@ export function GrowFooter() {
             left={column.left}
             top={link.top}
             color={footerLink}
-            size={15}
+            size={19}
           />
         )),
       )}
 
-      <View style={styles.flag}>
-        <Svg width={76} height={38} viewBox="0 0 76 38">
-          <Rect x={0} y={0} width={76} height={38} fill="#ffb700" rx={2} />
-          <Rect x={4} y={4} width={18} height={30} fill="#00534e" />
-          <Rect x={24} y={4} width={12} height={30} fill="#eb7400" />
-          <Rect x={38} y={4} width={34} height={30} fill="#8d153a" />
-        </Svg>
-      </View>
+      <Image
+        source={require('../../assets/social/sri-lanka-flag.webp')}
+        style={styles.flag}
+        resizeMode="contain"
+        accessibilityLabel="Sri Lanka flag"
+        accessibilityIgnoresInvertColors
+      />
       <Text style={[styles.localeLabel, { color: footerLink }]}>l Sin</Text>
       <View style={styles.localeChevron} pointerEvents="none">
         <Svg width={20} height={20} viewBox="0 0 24 24">
@@ -210,7 +231,7 @@ export function GrowFooter() {
           left={item.left}
           top={1396}
           color={footerLink}
-          size={20}
+          size={25}
         />
       ))}
 
@@ -232,12 +253,14 @@ export function GrowFooter() {
  */
 function Ring({
   id,
-  left,
+  side,
+  offset,
   top,
   dark,
 }: {
   id: string;
-  left: number;
+  side: 'left' | 'right';
+  offset: number;
   top: number;
   dark: boolean;
 }) {
@@ -248,7 +271,7 @@ function Ring({
     <Svg
       width={RING.size}
       height={RING.size}
-      style={[styles.ring, { left, top }]}
+      style={[styles.ring, { [side]: offset, top }]}
       pointerEvents="none"
     >
       <Defs>
@@ -437,46 +460,21 @@ function SocialButton({ name, left }: { name: SocialName; left: number }) {
   );
 }
 
-function SocialIcon({ name }: { name: SocialName }) {
-  const glyph = {
-    facebook: (
-      <>
-        <Circle cx={12} cy={12} r={12} fill="#1877f2" />
-        <Path
-          d="M15.4 12.4h-2.2V20h-3.2v-7.6H8.4V9.7h1.6V8.2c0-2 .9-3.2 3.2-3.2h2v2.7h-1.2c-.9 0-1 .3-1 .9v1.1h2.2l-.8 2.7Z"
-          fill="#ffffff"
-        />
-      </>
-    ),
-    x: (
-      <>
-        <Circle cx={12} cy={12} r={12} fill="#000000" />
-        <Path
-          d="M6 6h3.3l3 4.2L15.9 6H18l-4.6 5.6L18.4 18H15l-3.2-4.4L8.1 18H6l4.9-6L6 6Z"
-          fill="#ffffff"
-        />
-      </>
-    ),
-    youtube: (
-      <>
-        <Circle cx={12} cy={12} r={12} fill="#ff0000" />
-        <Path d="M10 8.5 16 12l-6 3.5v-7Z" fill="#ffffff" />
-      </>
-    ),
-    instagram: (
-      <>
-        <Circle cx={12} cy={12} r={12} fill="#c13584" />
-        <Rect x={6} y={6} width={12} height={12} rx={4} fill="none" stroke="#ffffff" strokeWidth={1.8} />
-        <Circle cx={12} cy={12} r={3} fill="none" stroke="#ffffff" strokeWidth={1.8} />
-        <Circle cx={15.6} cy={8.4} r={1} fill="#ffffff" />
-      </>
-    ),
-  }[name];
+const SOCIAL_SOURCE: Record<SocialName, ReturnType<typeof require>> = {
+  facebook: require('../../assets/social/facebook.webp'),
+  instagram: require('../../assets/social/instagram.webp'),
+  x: require('../../assets/social/x.svg'),
+  youtube: require('../../assets/social/youtube.svg'),
+};
 
+function SocialIcon({ name }: { name: SocialName }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
-      {glyph}
-    </Svg>
+    <Image
+      source={SOCIAL_SOURCE[name]}
+      style={styles.socialIcon}
+      resizeMode="contain"
+      accessibilityIgnoresInvertColors
+    />
   );
 }
 
@@ -597,9 +595,7 @@ const styles = StyleSheet.create({
 
   footerPlate: {
     position: 'absolute',
-    left: 0,
     top: 1210,
-    width: CANVAS,
     height: 230,
   },
   footerMark: {
@@ -614,7 +610,7 @@ const styles = StyleSheet.create({
     left: 87,
     top: 1258,
     fontFamily: fonts.wordmark,
-    fontSize: 24,
+    fontSize: 30,
     color: '#ffffff',
   },
 
@@ -638,14 +634,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 11,
     top: 1391,
+    width: 76,
+    height: 38,
   },
   localeLabel: {
     position: 'absolute',
     left: 101,
     top: 1394,
     fontFamily: fonts.uiBold,
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: 25,
+    lineHeight: 30,
   },
   localeChevron: {
     position: 'absolute',
@@ -657,5 +655,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 1394,
     padding: 5,
+  },
+  socialIcon: {
+    width: 26,
+    height: 26,
   },
 });

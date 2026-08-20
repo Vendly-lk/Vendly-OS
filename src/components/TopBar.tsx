@@ -2,7 +2,7 @@ import React from 'react';
 import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { usePageScroll } from './ScaledPage';
+import { useCanvasEdgeInset, usePageScroll } from './ScaledPage';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 
 import { useNavigation } from '../Navigation';
@@ -11,8 +11,22 @@ import { NAV, colors, fonts, type } from '../theme';
 
 /**
  * The nav that sits on every framed screen: wordmark, three links, the
- * light/dark toggle, Login, and the "Start For Free" pill. Geometry is identical
- * across every page of the design, so it lives here once.
+ * light/dark toggle, Login, and the "Start For Free" pill. Geometry is
+ * identical across every page of the design, so it lives here once.
+ *
+ * The logo and the toggle/login/CTA cluster live inside `EdgeBar`, a plain
+ * strip pinned to the page's *true* left/right edges with `left`/`right` and
+ * no explicit width — the same technique the footer's backdrop plate already
+ * uses reliably. Each control then sits a small, fixed padding in from
+ * `EdgeBar`'s own edge. Earlier attempts computed each control's `left` by
+ * hand from the canvas inset and cancelled it against the content frame's own
+ * offset; any change to one side without the other threw everything off, and
+ * it was hard to check at a glance. Nothing here needs to cancel against
+ * anything — `EdgeBar` already reaches the corners, so its children just
+ * describe their own distance from an edge that is already the right one.
+ *
+ * The three centre links are unrelated to any of this — they stay inside the
+ * ordinary 1440 content frame, at the same fixed position as ever.
  *
  * The CTA pill inverts with the theme (black-on-light, white-on-dark), and its
  * 24px side padding from the design is deliberately not reproduced — the label
@@ -20,12 +34,24 @@ import { NAV, colors, fonts, type } from '../theme';
  * "Start For Free" onto two lines.
  */
 
+const EDGE_PAD = 32;
+const EDGE_GAP = 28;
+const BAR_HEIGHT = 100;
+
 export type TopBarProps = {
   /** Some frames sit on their own ground and want the bar transparent. */
   onNavPress?: (label: string) => void;
   onLoginPress?: () => void;
   onStartForFreePress?: () => void;
   showToggle?: boolean;
+  /**
+   * Pages with a fixed background that doesn't follow the light/dark toggle
+   * (the AI engine's dark gradient) need the bar's ink and CTA colours pinned
+   * instead of read from the global theme, or the bar goes invisible against it.
+   */
+  forceInk?: string;
+  forceCtaBg?: string;
+  forceCtaLabel?: string;
 };
 
 export function TopBar({
@@ -33,11 +59,18 @@ export function TopBar({
   onLoginPress,
   onStartForFreePress,
   showToggle = true,
+  forceInk,
+  forceCtaBg,
+  forceCtaLabel,
 }: TopBarProps) {
   const { theme, themeName, toggleTheme } = useTheme();
   const { navigate } = useNavigation();
   const { scrollToSection } = usePageScroll();
+  const canvasEdgeInset = useCanvasEdgeInset();
   const isDark = themeName === 'dark';
+  const ink = forceInk ?? theme.text;
+  const ctaBg = forceCtaBg ?? theme.ctaBg;
+  const ctaLabel = forceCtaLabel ?? theme.ctaLabel;
   const goSignIn = onLoginPress ?? (() => navigate('signin'));
   const goStart = onStartForFreePress ?? (() => navigate('signin'));
   const toggle = useInteraction();
@@ -55,67 +88,76 @@ export function TopBar({
 
   return (
     <>
-      <Image
-        source={require('../../assets/vendly-logo.png')}
-        style={styles.logoMark}
-        resizeMode="cover"
-        accessibilityIgnoresInvertColors
-      />
-      <Text style={[styles.wordmark, { color: theme.text }]} accessibilityLabel="Vendly.lk">
-        endly.
-        <Text style={{ color: colors.accent }}>lk</Text>
-      </Text>
+      <View
+        style={[styles.edgeBar, { left: -canvasEdgeInset, right: -canvasEdgeInset }]}
+        pointerEvents="box-none"
+      >
+        <Image
+          source={require('../../assets/vendly-logo.png')}
+          style={styles.logoMark}
+          resizeMode="contain"
+          tintColor={ink}
+          accessibilityIgnoresInvertColors
+        />
+        <Text style={[styles.wordmark, { color: ink }]} accessibilityLabel="Vendly.lk">
+          endly.
+          <Text style={{ color: colors.accent }}>lk</Text>
+        </Text>
+
+        {showToggle ? (
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityState={{ checked: isDark }}
+            accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+            onPress={toggleTheme}
+            {...toggle.handlers}
+            style={[
+              styles.toggleTrack,
+              clickable,
+              toggle.hovered && styles.toggleTrackHover,
+              toggle.focusVisible && focusRing(theme.accent),
+            ]}
+          >
+            <Animated.View
+              style={[
+                styles.toggleKnob,
+                {
+                  left: knobShift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [
+                      NAV.toggle.knobInset,
+                      NAV.toggle.width - NAV.toggle.knob - NAV.toggle.knobInset,
+                    ],
+                  }),
+                  backgroundColor: knobShift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['#ffcc00', '#000000'],
+                  }),
+                },
+              ]}
+            />
+            <View style={[styles.toggleIcon, { left: 24 }]} pointerEvents="none">
+              <SunIcon color={isDark ? '#8e8e93' : '#000000'} />
+            </View>
+            <View style={[styles.toggleIcon, { left: 100 }]} pointerEvents="none">
+              <MoonIcon color={isDark ? '#ffffff' : '#8e8e93'} />
+            </View>
+          </Pressable>
+        ) : null}
+
+        <LoginLink color={ink} onPress={goSignIn} />
+        <StartForFree bg={ctaBg} label={ctaLabel} onPress={goStart} />
+      </View>
 
       {NAV.links.map(({ label, left }) => (
         <NavLink
           key={label}
           label={label}
           left={left}
-          color={theme.text}
+          color={ink}
           onPress={() => (onNavPress ? onNavPress(label) : jumpTo(label))}
         />
       ))}
-
-      {showToggle ? (
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityState={{ checked: isDark }}
-          accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-          onPress={toggleTheme}
-          {...toggle.handlers}
-          style={[
-            styles.toggleTrack,
-            clickable,
-            toggle.hovered && styles.toggleTrackHover,
-            toggle.focusVisible && focusRing(theme.accent),
-          ]}
-        >
-          <Animated.View
-            style={[
-              styles.toggleKnob,
-              {
-                left: knobShift.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [NAV.toggle.knobInset, NAV.toggle.width - NAV.toggle.knob - NAV.toggle.knobInset],
-                }),
-                backgroundColor: knobShift.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['#ffcc00', '#000000'],
-                }),
-              },
-            ]}
-          />
-          <View style={[styles.toggleIcon, { left: 20 }]} pointerEvents="none">
-            <SunIcon color={isDark ? '#8e8e93' : '#000000'} />
-          </View>
-          <View style={[styles.toggleIcon, { left: 85 }]} pointerEvents="none">
-            <MoonIcon color={isDark ? '#ffffff' : '#8e8e93'} />
-          </View>
-        </Pressable>
-      ) : null}
-
-      <LoginLink color={theme.text} onPress={goSignIn} />
-      <StartForFree bg={theme.ctaBg} label={theme.ctaLabel} onPress={goStart} />
     </>
   );
 }
@@ -234,7 +276,7 @@ function StartForFree({
 
 function SunIcon({ color }: { color: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
+    <Svg width={24} height={24} viewBox="0 0 24 24">
       <Circle cx={12} cy={12} r={4.5} fill={color} />
       {[0, 45, 90, 135, 180, 225, 270, 315].map(deg => {
         const rad = (deg * Math.PI) / 180;
@@ -258,7 +300,7 @@ function SunIcon({ color }: { color: string }) {
 
 function MoonIcon({ color }: { color: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24">
+    <Svg width={24} height={24} viewBox="0 0 24 24">
       <Path
         d="M21 13.2A9 9 0 1 1 10.8 3a7 7 0 0 0 10.2 10.2Z"
         fill="none"
@@ -271,18 +313,25 @@ function MoonIcon({ color }: { color: string }) {
 }
 
 const styles = StyleSheet.create({
+  /** Reaches the page's true edges — see the module doc comment above. */
+  edgeBar: {
+    position: 'absolute',
+    top: 0,
+    height: BAR_HEIGHT,
+  },
+
   logoMark: {
     position: 'absolute',
-    left: -25.056,
-    top: -46,
-    width: 72,
-    height: 108,
+    left: EDGE_PAD - 6,
+    top: -57.5,
+    width: 90,
+    height: 135,
   },
   wordmark: {
     position: 'absolute',
-    left: 54.15,
-    top: 41.2,
-    width: 85.854,
+    left: EDGE_PAD + 93,
+    top: 51.5,
+    width: 107,
     fontFamily: fonts.wordmark,
     ...type.wordmark,
   },
@@ -307,8 +356,8 @@ const styles = StyleSheet.create({
 
   toggleTrack: {
     position: 'absolute',
-    left: NAV.toggle.left,
-    top: NAV.toggle.top,
+    right: EDGE_PAD + NAV.ctaBox.width + EDGE_GAP + 120 + EDGE_GAP,
+    top: 6,
     width: NAV.toggle.width,
     height: NAV.toggle.height,
     borderRadius: NAV.toggle.height / 2,
@@ -332,7 +381,7 @@ const styles = StyleSheet.create({
 
   loginHit: {
     position: 'absolute',
-    left: NAV.loginLeft,
+    right: EDGE_PAD + NAV.ctaBox.width + EDGE_GAP,
     top: 17,
     padding: 10,
   },
@@ -343,8 +392,8 @@ const styles = StyleSheet.create({
 
   ctaWrap: {
     position: 'absolute',
-    left: NAV.ctaBox.left,
-    top: NAV.ctaBox.top,
+    right: EDGE_PAD,
+    top: 12,
   },
   cta: {
     width: NAV.ctaBox.width,

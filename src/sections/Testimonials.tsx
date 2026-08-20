@@ -3,8 +3,8 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
-import { usePageScroll, useIsSectionActive } from '../components/ScaledPage';
-import { ScrollCue } from '../components/ScrollCue';
+import { useIsSectionActive } from '../components/ScaledPage';
+import { TopBar } from '../components/TopBar';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
@@ -38,7 +38,6 @@ const QUOTES = [
 
 export function Testimonials() {
   const { theme, themeName } = useTheme();
-  const { scrollToSection } = usePageScroll();
   const onScreen = useIsSectionActive('testimonials');
   const [active, setActive] = useState(1);
   const dark = themeName === 'dark';
@@ -101,9 +100,7 @@ export function Testimonials() {
         ))}
       </View>
 
-      <View style={styles.cue}>
-        <ScrollCue onPress={() => scrollToSection('footer')} label="Scroll to newsletter" />
-      </View>
+      <TopBar />
     </View>
   );
 }
@@ -380,11 +377,5 @@ const styles = StyleSheet.create({
   dot: {
     height: 10,
     borderRadius: 5,
-  },
-
-  cue: {
-    position: 'absolute',
-    left: 685,
-    top: 918,
   },
 });

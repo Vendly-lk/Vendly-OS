@@ -5,36 +5,22 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
 import { useIsSectionActive } from '../components/ScaledPage';
-import { fonts } from '../theme';
+import { TopBar } from '../components/TopBar';
+import { useTheme } from '../ThemeContext';
+import { colors, fonts } from '../theme';
 import { GUTTER, styles as kit } from './kit';
 
 /**
  * "Hyperdriven by AI" in the reference site is a full-bleed coloured band that
- * breaks the page's light/dark rhythm. This is the equivalent: the scoring
- * engine on its own ground, which stays the same in both themes on purpose —
- * the break is the point.
+ * breaks the page's light/dark rhythm. This page instead follows the site's
+ * own light/dark surface like every other section — a special one-off ground
+ * here read as a mismatch with the rest of the site rather than a highlight.
  *
  * No design export for this page; the signal names are the checks the product
  * describes elsewhere on the site.
  */
 
 export const AI_HEIGHT = 1024;
-
-/**
- * This page's ground, painted behind the whole viewport rather than only the
- * 1440 the page composes on — otherwise the gradient stops short of the edges
- * and the screen reads as a band with bars beside it.
- */
-export function AiBackdrop() {
-  return (
-    <LinearGradient
-      colors={['#0b1f4d', '#141048', '#2a0f5c']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={StyleSheet.absoluteFill}
-    />
-  );
-}
 
 const SIGNALS = [
   { label: 'Refused deliveries', weight: 'High' },
@@ -46,17 +32,23 @@ const SIGNALS = [
 
 export function AiEngine() {
   const onScreen = useIsSectionActive('ai');
+  const { theme, themeName } = useTheme();
+  const dark = themeName === 'dark';
+  const hairline = dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.14)';
+  const chipFill = dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+  const cardFill = dark ? 'rgba(255,255,255,0.04)' : '#ffffff';
+  const trackFill = dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.1)';
 
   return (
-    <View style={kit.section}>
+    <View style={[kit.section, { backgroundColor: theme.surface }]}>
       <Reveal visible={onScreen}>
-        <Text accessibilityRole="header" style={styles.heading}>
+        <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>
           Scored before it ships.
         </Text>
       </Reveal>
 
       <Reveal visible={onScreen} delay={REVEAL_STAGGER}>
-        <Text style={styles.lead}>
+        <Text style={[styles.lead, { color: theme.textMuted }]}>
           Every order is read against the buyer own history — not a blocklist someone else wrote.
           The signals that actually cost Sri Lankan sellers money, weighted the way they actually
           behave.
@@ -65,36 +57,43 @@ export function AiEngine() {
 
       {SIGNALS.map((signal, index) => (
         <Reveal key={signal.label} visible={onScreen} delay={REVEAL_STAGGER * (2 + index * 0.6)}>
-          <View style={[styles.chip, { top: 540 + index * 74 }]}>
+          <View
+            style={[
+              styles.chip,
+              { top: 540 + index * 74, borderColor: hairline, backgroundColor: chipFill },
+            ]}
+          >
             <View style={styles.dot}>
               <Svg width={12} height={12} viewBox="0 0 12 12">
-                <Circle cx={6} cy={6} r={5} fill="#00e0ff" />
+                <Circle cx={6} cy={6} r={5} fill={colors.accent} />
               </Svg>
             </View>
-            <Text style={styles.chipLabel}>{signal.label}</Text>
-            <Text style={styles.chipWeight}>{signal.weight}</Text>
+            <Text style={[styles.chipLabel, { color: theme.text }]}>{signal.label}</Text>
+            <Text style={[styles.chipWeight, { color: theme.textMuted }]}>{signal.weight}</Text>
           </View>
         </Reveal>
       ))}
 
       <Reveal visible={onScreen} delay={REVEAL_STAGGER * 3}>
-        <View style={styles.scoreCard}>
-          <Text style={styles.scoreCaption}>Order #4821</Text>
-          <Text style={styles.score}>72</Text>
-          <Text style={styles.scoreVerdict}>Ask for prepayment</Text>
-          <View style={styles.meterTrack}>
+        <View style={[styles.scoreCard, { borderColor: hairline, backgroundColor: cardFill }]}>
+          <Text style={[styles.scoreCaption, { color: theme.textMuted }]}>Order #4821</Text>
+          <Text style={[styles.score, { color: theme.text }]}>72</Text>
+          <Text style={[styles.scoreVerdict, { color: colors.accent }]}>Ask for prepayment</Text>
+          <View style={[styles.meterTrack, { backgroundColor: trackFill }]}>
             <LinearGradient
-              colors={['#00e0ff', '#7b5cff']}
+              colors={[colors.accent, colors.highlightNavy]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.meterFill}
             />
           </View>
-          <Text style={styles.scoreNote}>
+          <Text style={[styles.scoreNote, { color: theme.textMuted }]}>
             3 refused deliveries in 90 days, 2 with the same courier.
           </Text>
         </View>
       </Reveal>
+
+      <TopBar />
     </View>
   );
 }
@@ -105,7 +104,6 @@ const styles = StyleSheet.create({
     left: GUTTER,
     top: 190,
     width: 900,
-    color: '#ffffff',
     fontFamily: fonts.display,
     fontSize: 70,
     lineHeight: 84,
@@ -115,7 +113,6 @@ const styles = StyleSheet.create({
     left: GUTTER,
     top: 320,
     width: 640,
-    color: 'rgba(255,255,255,0.72)',
     fontFamily: fonts.cta,
     fontSize: 22,
     lineHeight: 34,
@@ -127,8 +124,6 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 22,
@@ -138,12 +133,10 @@ const styles = StyleSheet.create({
   },
   chipLabel: {
     flex: 1,
-    color: '#ffffff',
     fontFamily: fonts.cta,
     fontSize: 19,
   },
   chipWeight: {
-    color: 'rgba(255,255,255,0.6)',
     fontFamily: fonts.ui,
     fontSize: 15,
   },
@@ -155,24 +148,19 @@ const styles = StyleSheet.create({
     height: 440,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(6,10,32,0.6)',
     padding: 38,
   },
   scoreCaption: {
-    color: 'rgba(255,255,255,0.55)',
     fontFamily: fonts.ui,
     fontSize: 15,
   },
   score: {
     marginTop: 18,
-    color: '#ffffff',
     fontFamily: fonts.display,
     fontSize: 128,
     lineHeight: 138,
   },
   scoreVerdict: {
-    color: '#00e0ff',
     fontFamily: fonts.display,
     fontSize: 28,
     lineHeight: 36,
@@ -181,7 +169,6 @@ const styles = StyleSheet.create({
     marginTop: 26,
     height: 10,
     borderRadius: 5,
-    backgroundColor: 'rgba(255,255,255,0.14)',
     overflow: 'hidden',
   },
   meterFill: {
@@ -191,7 +178,6 @@ const styles = StyleSheet.create({
   },
   scoreNote: {
     marginTop: 22,
-    color: 'rgba(255,255,255,0.7)',
     fontFamily: fonts.cta,
     fontSize: 17,
     lineHeight: 26,

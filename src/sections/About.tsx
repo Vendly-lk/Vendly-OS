@@ -1,11 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { BulletIcon } from '../components/icons/BulletIcon';
-import { ScrollCue } from '../components/ScrollCue';
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
-import { usePageScroll, useIsSectionActive } from '../components/ScaledPage';
+import { useIsSectionActive } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
+import { useBlink } from '../interaction';
 import { useTheme } from '../ThemeContext';
 import { fonts, type } from '../theme';
 
@@ -38,9 +38,9 @@ const BULLETS = [
 ] as const;
 
 export function About() {
-  const { scrollToSection } = usePageScroll();
   const onScreen = useIsSectionActive('about');
   const { theme } = useTheme();
+  const blink = useBlink();
 
   return (
     <View style={[styles.section, { backgroundColor: theme.surface }]}>
@@ -64,9 +64,11 @@ export function About() {
 
         {BULLETS.map(({ text, textTop, icon }) => (
           <View key={text}>
-            <View style={[styles.bulletMark, { left: icon.left, top: icon.top }]}>
+            <Animated.View
+              style={[styles.bulletMark, { left: icon.left, top: icon.top, opacity: blink }]}
+            >
               <BulletIcon size={icon.size} />
-            </View>
+            </Animated.View>
             <Text style={[styles.bulletText, { top: textTop, color: theme.text }]}>{text}</Text>
           </View>
         ))}
@@ -75,10 +77,6 @@ export function About() {
           Vendly helps you avoid that risk. Check your customer's previous order records now to
           avoid any further losses.
         </Text>
-      </View>
-
-      <View style={styles.scrollCue}>
-        <ScrollCue onPress={() => scrollToSection('categories')} label="Scroll to categories" />
       </View>
 
       <TopBar />
@@ -133,11 +131,5 @@ const styles = StyleSheet.create({
     width: BLOCK.width,
     fontFamily: fonts.body,
     ...type.body,
-  },
-
-  scrollCue: {
-    position: 'absolute',
-    left: 685,
-    top: 941,
   },
 });

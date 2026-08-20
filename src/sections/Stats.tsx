@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
 import { useIsSectionActive } from '../components/ScaledPage';
+import { TopBar } from '../components/TopBar';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
 import { GUTTER, PAGE_W, SectionHeading, styles as kit } from './kit';
@@ -58,6 +59,8 @@ export function Stats() {
           Figures reported by Vendly sellers, as quoted on this page.
         </Text>
       </Reveal>
+
+      <TopBar />
     </View>
   );
 }

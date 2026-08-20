@@ -1,10 +1,12 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
 import { useIsSectionActive } from '../components/ScaledPage';
+import { TopBar } from '../components/TopBar';
 import { useTheme } from '../ThemeContext';
 import { SriLankaMap } from '../components/SriLankaMap';
-import { fonts } from '../theme';
+import { clickable, focusRing, useInteraction } from '../interaction';
+import { colors, fonts } from '../theme';
 import { GUTTER, SectionHeading, SectionLead, styles as kit } from './kit';
 
 /**
@@ -18,7 +20,14 @@ import { GUTTER, SectionHeading, SectionLead, styles as kit } from './kit';
 
 export const COVERAGE_HEIGHT = 1024;
 
-const COURIERS = ['Koombiyo', 'PromptXpress', 'Domex', 'Aramex', 'DHL', 'SL Post'];
+const COURIERS = [
+  { name: 'Koombiyo', url: 'https://www.koombiyodelivery.lk' },
+  { name: 'PromptXpress', url: 'https://promptxpress.com' },
+  { name: 'Domex', url: 'https://domex.lk' },
+  { name: 'Aramex', url: 'https://www.aramex.com/lk/en' },
+  { name: 'DHL', url: 'https://www.dhl.com/lk-en/home.html' },
+  { name: 'SL Post', url: 'https://www.slpost.gov.lk' },
+];
 
 const MAP = { left: 720, top: 150, width: 640, height: 740 };
 
@@ -44,9 +53,13 @@ export function Coverage() {
       <Reveal visible={onScreen} delay={REVEAL_STAGGER * 2}>
         <View style={styles.chips}>
           {COURIERS.map(courier => (
-            <View key={courier} style={[styles.chip, { borderColor: chipBorder }]}>
-              <Text style={[styles.chipLabel, { color: theme.text }]}>{courier}</Text>
-            </View>
+            <CourierChip
+              key={courier.name}
+              name={courier.name}
+              url={courier.url}
+              borderColor={chipBorder}
+              textColor={theme.text}
+            />
           ))}
         </View>
       </Reveal>
@@ -57,13 +70,41 @@ export function Coverage() {
         </View>
       </Reveal>
 
-      <Reveal visible={onScreen} delay={REVEAL_STAGGER * 4}>
-        <Text style={[styles.credit, { color: theme.textMuted }]}>
-          Coastline: geoBoundaries / OpenStreetMap (ODbL 1.0)
-        </Text>
-      </Reveal>
-
+      <TopBar />
     </View>
+  );
+}
+
+function CourierChip({
+  name,
+  url,
+  borderColor,
+  textColor,
+}: {
+  name: string;
+  url: string;
+  borderColor: string;
+  textColor: string;
+}) {
+  const { hovered, focusVisible, handlers } = useInteraction();
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`${name} (opens in a new tab)`}
+      onPress={() => Linking.openURL(url)}
+      {...handlers}
+      style={[
+        styles.chip,
+        { borderColor: hovered ? colors.accent : borderColor },
+        clickable,
+        focusVisible && focusRing(colors.accent, 3),
+      ]}
+    >
+      <Text style={[styles.chipLabel, { color: hovered ? colors.accent : textColor }]}>
+        {name}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -93,12 +134,5 @@ const styles = StyleSheet.create({
     top: MAP.top,
     width: MAP.width,
     height: MAP.height,
-  },
-  credit: {
-    position: 'absolute',
-    left: MAP.left,
-    top: MAP.top + MAP.height + 14,
-    fontFamily: fonts.ui,
-    fontSize: 13,
   },
 });

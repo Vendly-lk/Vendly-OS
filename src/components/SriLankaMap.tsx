@@ -73,8 +73,6 @@ export function SriLankaMap({ width, height }: SriLankaMapProps) {
 
 const styles = StyleSheet.create({
   plate: {
-    borderRadius: 28,
-    backgroundColor: '#04101c',
     overflow: 'hidden',
   },
   label: {

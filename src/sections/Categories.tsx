@@ -3,8 +3,6 @@ import { Animated, Easing, ImageSourcePropType, Pressable, StyleSheet, View } fr
 import Svg, { Text as SvgText } from 'react-native-svg';
 
 import { CategoryDetail, CategoryDetailSpec } from './CategoryDetail';
-import { ChevronCircleIcon } from '../components/icons/ChevronCircleIcon';
-import { usePageScroll } from '../components/ScaledPage';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { colors, fonts } from '../theme';
 
@@ -149,7 +147,6 @@ const CATEGORIES: Category[] = [
 export function Categories() {
   const [active, setActive] = useState<string | null>(null);
   const [opened, setOpened] = useState<Category | null>(null);
-  const { scrollToSection } = usePageScroll();
   const progress = useRef(new Animated.Value(0)).current;
 
   const openDetail = useCallback(
@@ -194,10 +191,6 @@ export function Categories() {
           onOpen={() => openDetail(category)}
         />
       ))}
-
-      <View style={styles.chevron}>
-        <ChevronCircleIcon onPress={() => scrollToSection('testimonials')} />
-      </View>
 
       {opened ? (
         <CategoryDetail
@@ -378,10 +371,5 @@ const styles = StyleSheet.create({
   pillLabel: {
     fontFamily: fonts.ui,
     fontSize: 16,
-  },
-  chevron: {
-    position: 'absolute',
-    left: 680,
-    top: 904,
   },
 });

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
 import { useIsSectionActive } from '../components/ScaledPage';
+import { TopBar } from '../components/TopBar';
 import { clickable, focusRing, useInteraction } from '../interaction';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
@@ -63,6 +64,8 @@ export function HowItWorks() {
           />
         </Reveal>
       ))}
+
+      <TopBar />
     </View>
   );
 }

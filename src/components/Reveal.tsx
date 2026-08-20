@@ -45,15 +45,18 @@ export function Reveal({ visible, delay = 0, style, children }: RevealProps) {
       progress.setValue(1);
       return;
     }
-    const animation = Animated.timing(progress, {
+    Animated.timing(progress, {
       toValue: 1,
       duration: REVEAL_MS,
       delay,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
-    });
-    animation.start();
-    return () => animation.stop();
+    }).start();
+    // No stop-on-cleanup here on purpose: React re-runs this effect's cleanup
+    // whenever `visible` changes at all, including flipping back to false as
+    // soon as the reader scrolls past the page — which, before `shown.current`
+    // gates a restart, used to freeze the animation mid-flight and leave the
+    // content stuck at a low opacity forever. Once committed, let it finish.
   }, [visible, delay, reduced, progress]);
 
   return (

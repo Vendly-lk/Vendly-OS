@@ -106,25 +106,32 @@ export const fonts = {
 
 /** Line heights match what the design resolves "normal" leading to (~1.45x). */
 export const type = {
-  nav: { fontSize: 20, lineHeight: 24 },
-  login: { fontSize: 24, lineHeight: 29 },
-  cta: { fontSize: 18, lineHeight: 22 },
-  wordmark: { fontSize: 16, lineHeight: 20 },
+  nav: { fontSize: 25, lineHeight: 30 },
+  login: { fontSize: 29, lineHeight: 35 },
+  cta: { fontSize: 22, lineHeight: 26 },
+  wordmark: { fontSize: 20, lineHeight: 25 },
   eyebrow: { fontSize: 40, lineHeight: 58 },
   heading: { fontSize: 48, lineHeight: 70 },
   body: { fontSize: 36, lineHeight: 52 },
   bullet: { fontSize: 40, lineHeight: 58 },
 } as const;
 
-/** Shared nav geometry — identical on every framed screen in the design. */
+/**
+ * Shared nav geometry — identical on every framed screen in the design, scaled
+ * up ~25% from the original artboard export for a more prominent bar. The
+ * logo/wordmark on the left and the toggle/login/CTA cluster on the right are
+ * additionally pushed out to the page's true edges by `TopBar` itself (see
+ * `useCanvasEdgeInset`) — these numbers are their position on the 1440 frame
+ * before that edge push is added.
+ */
 export const NAV = {
   links: [
     { label: 'Why Vendly ?', left: 254 },
-    { label: 'Pricing', left: 410 },
-    { label: 'xxxxxxxxxxxx', left: 510 },
+    { label: 'Pricing', left: 425 },
+    { label: 'xxxxxxxxxxxx', left: 540 },
   ],
-  linkTop: 32,
-  loginLeft: 1135,
-  ctaBox: { left: 1269, top: 17, width: 157, height: 51, radius: 56 },
-  toggle: { left: 987, top: 13, width: 128, height: 60, knob: 50, knobInset: 7 },
+  linkTop: 36,
+  loginLeft: 1110,
+  ctaBox: { left: 1250, top: 12, width: 190, height: 62, radius: 62 },
+  toggle: { left: 947, top: 6, width: 154, height: 72, knob: 60, knobInset: 6 },
 } as const;

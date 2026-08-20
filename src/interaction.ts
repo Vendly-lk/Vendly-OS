@@ -132,3 +132,41 @@ export function useReducedMotion(): boolean {
 
   return reduced;
 }
+
+/**
+ * A continuous, looping 0..1 pulse — for things that should read as "live" the
+ * whole time they are on screen (the About page's fault markers), not just on
+ * hover or first appearance. Skips the loop entirely under reduced motion,
+ * settling at fully visible rather than blinking regardless of the OS setting.
+ */
+export function useBlink(periodMs = 1400): Animated.Value {
+  const reduced = useReducedMotion();
+  const value = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      value.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(value, {
+          toValue: 0.25,
+          duration: periodMs / 2,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(value, {
+          toValue: 1,
+          duration: periodMs / 2,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, periodMs, value]);
+
+  return value;
+}

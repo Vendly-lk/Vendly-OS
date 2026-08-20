@@ -1,9 +1,10 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
 import { useIsSectionActive } from '../components/ScaledPage';
+import { TopBar } from '../components/TopBar';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
 import { GUTTER, PAGE_W, SectionHeading, SectionLead, styles as kit } from './kit';
@@ -64,8 +65,34 @@ export function Channels() {
               },
             ]}
           >
-            <View style={[styles.badge, { backgroundColor: channel.tint }]}>
-              <ChannelGlyph id={channel.id} />
+            <View
+              style={[
+                styles.badge,
+                {
+                  backgroundColor:
+                    channel.id === 'facebook' || channel.id === 'instagram'
+                      ? '#ffffff'
+                      : channel.tint,
+                },
+              ]}
+            >
+              {channel.id === 'facebook' ? (
+                <Image
+                  source={require('../../assets/social/facebook.webp')}
+                  style={styles.badgeImage}
+                  resizeMode="contain"
+                  accessibilityIgnoresInvertColors
+                />
+              ) : channel.id === 'instagram' ? (
+                <Image
+                  source={require('../../assets/social/instagram.webp')}
+                  style={styles.badgeImage}
+                  resizeMode="contain"
+                  accessibilityIgnoresInvertColors
+                />
+              ) : (
+                <ChannelGlyph id={channel.id} />
+              )}
             </View>
             <Text style={[styles.cardLabel, { color: theme.text }]}>{channel.label}</Text>
             <Text style={[styles.cardNote, { color: theme.textMuted }]}>{channel.note}</Text>
@@ -78,6 +105,8 @@ export function Channels() {
           One number. One history. Every channel.
         </Text>
       </Reveal>
+
+      <TopBar />
     </View>
   );
 }
@@ -139,6 +168,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  badgeImage: {
+    width: 34,
+    height: 34,
   },
   cardLabel: {
     marginTop: 118,
