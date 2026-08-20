@@ -7,6 +7,7 @@ import { Arimo_400Regular } from '@expo-google-fonts/arimo';
 import { BeVietnamPro_700Bold } from '@expo-google-fonts/be-vietnam-pro';
 import { Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import { Outfit_400Regular, Outfit_700Bold } from '@expo-google-fonts/outfit';
+import { RubikWetPaint_400Regular } from '@expo-google-fonts/rubik-wet-paint';
 import { Suwannaphum_400Regular } from '@expo-google-fonts/suwannaphum';
 import { TenaliRamakrishna_400Regular } from '@expo-google-fonts/tenali-ramakrishna';
 import { VarelaRound_400Regular } from '@expo-google-fonts/varela-round';
@@ -33,6 +34,7 @@ export default function App() {
     Inter_700Bold,
     Outfit_400Regular,
     Outfit_700Bold,
+    RubikWetPaint_400Regular,
     Suwannaphum_400Regular,
     TenaliRamakrishna_400Regular,
     VarelaRound_400Regular,
