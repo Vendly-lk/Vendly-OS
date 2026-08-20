@@ -2,7 +2,8 @@ import React, { useCallback, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { usePageScroll } from '../components/ScaledPage';
+import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
+import { usePageScroll, useIsSectionActive } from '../components/ScaledPage';
 import { ScrollCue } from '../components/ScrollCue';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { useTheme } from '../ThemeContext';
@@ -38,6 +39,7 @@ const QUOTES = [
 export function Testimonials() {
   const { theme, themeName } = useTheme();
   const { scrollToSection } = usePageScroll();
+  const onScreen = useIsSectionActive('testimonials');
   const [active, setActive] = useState(1);
   const dark = themeName === 'dark';
 
@@ -50,9 +52,11 @@ export function Testimonials() {
     <View style={[styles.section, { backgroundColor: theme.surface }]}>
       <Text style={[styles.eyebrow, { color: colors.accent }]}>Testimonials</Text>
 
-      <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>
-        What People Say About Us !
-      </Text>
+      <Reveal visible={onScreen}>
+        <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>
+          What People Say About Us !
+        </Text>
+      </Reveal>
 
       <View style={[styles.rule, { backgroundColor: colors.accent }]} />
 

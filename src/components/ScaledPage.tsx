@@ -10,6 +10,8 @@ import React, {
 import {
   Dimensions,
   LayoutChangeEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   ScrollView,
   StyleSheet,
@@ -40,6 +42,17 @@ const PageScrollCtx = createContext<PageScroll>({ scrollToSection: () => {} });
 
 export function usePageScroll(): PageScroll {
   return useContext(PageScrollCtx);
+}
+
+/**
+ * Which page the reader is actually on. Sections use it to run their entrance
+ * when they are arrived at rather than when they mount, since every page is
+ * mounted from the start.
+ */
+const ActiveSectionCtx = createContext<SectionId | null>(null);
+
+export function useIsSectionActive(id: SectionId): boolean {
+  return useContext(ActiveSectionCtx) === id;
 }
 
 /**
@@ -115,6 +128,20 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
   }, [applyViewport]);
 
   const ids = useMemo(() => sections.map(section => section.id), [sections]);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, layoutMeasurement } = event.nativeEvent;
+      const page = layoutMeasurement.height;
+      if (page <= 0) return;
+      // Count a page as arrived at once it covers most of the viewport, so the
+      // entrance fires as it settles rather than as it starts to appear.
+      const next = Math.round(contentOffset.y / page);
+      setActiveIndex(prev => (prev === next ? prev : next));
+    },
+    [],
+  );
 
   const scrollToSection = useCallback(
     (id: SectionId) => {
@@ -134,6 +161,8 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
           ref={scrollRef}
           pagingEnabled={sections.length > 1}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={handleScroll}
         >
           {sections.map(section => (
             <View
@@ -156,7 +185,9 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
                   },
                 ]}
               >
-                {section.content}
+                <ActiveSectionCtx.Provider value={ids[activeIndex] ?? null}>
+                  {section.content}
+                </ActiveSectionCtx.Provider>
               </View>
             </View>
           ))}

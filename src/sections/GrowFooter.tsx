@@ -10,6 +10,8 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 
+import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
+import { useIsSectionActive } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
 import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { useTheme } from '../ThemeContext';
@@ -108,6 +110,7 @@ const SOCIAL: { name: SocialName; left: number }[] = [
 
 export function GrowFooter() {
   const { themeName } = useTheme();
+  const onScreen = useIsSectionActive('footer');
   const dark = themeName === 'dark';
 
   const ink = dark ? '#ffffff' : '#000000';
@@ -129,16 +132,20 @@ export function GrowFooter() {
         accessibilityLabel="A crowd of stylised 3D characters"
       />
 
-      <View style={[styles.trustedPill, { borderColor: hairline }]}>
-        <Text style={[styles.trustedLabel, { color: ink }]}>Trusted by 45k Business</Text>
-      </View>
+      <Reveal visible={onScreen}>
+        <View style={[styles.trustedPill, { borderColor: hairline }]}>
+          <Text style={[styles.trustedLabel, { color: ink }]}>Trusted by 45k Business</Text>
+        </View>
+      </Reveal>
 
       <Text accessibilityRole="header" style={[styles.headline, { color: ink }]}>
         Grow your <Text style={{ color: highlight }}>customers,</Text>
         {'\n'}Grow your Business.
       </Text>
 
-      <EmailCapture ink={ink} hairline={hairline} dark={dark} />
+      <Reveal visible={onScreen} delay={REVEAL_STAGGER * 2}>
+        <EmailCapture ink={ink} hairline={hairline} dark={dark} />
+      </Reveal>
 
       <LinearGradient
         colors={

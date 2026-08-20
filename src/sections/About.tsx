@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { BulletIcon } from '../components/icons/BulletIcon';
 import { ScrollCue } from '../components/ScrollCue';
-import { usePageScroll } from '../components/ScaledPage';
+import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
+import { usePageScroll, useIsSectionActive } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
 import { useTheme } from '../ThemeContext';
 import { fonts, type } from '../theme';
@@ -38,21 +39,28 @@ const BULLETS = [
 
 export function About() {
   const { scrollToSection } = usePageScroll();
+  const onScreen = useIsSectionActive('about');
   const { theme } = useTheme();
 
   return (
     <View style={[styles.section, { backgroundColor: theme.surface }]}>
       <View style={styles.block}>
-        <Text style={[styles.eyebrow, { color: theme.text }]}>About us</Text>
+        <Reveal visible={onScreen}>
+          <Text style={[styles.eyebrow, { color: theme.text }]}>About us</Text>
+        </Reveal>
 
-        <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>
-          Risk of fake orders
-        </Text>
+        <Reveal visible={onScreen} delay={REVEAL_STAGGER}>
+          <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>
+            Risk of fake orders
+          </Text>
+        </Reveal>
 
+        <Reveal visible={onScreen} delay={REVEAL_STAGGER * 2}>
         <Text style={[styles.intro, { color: theme.textMuted }]}>
           Vendly is a powerful fraud detection tool for your business that scans and accurately
           verifies your orders
         </Text>
+        </Reveal>
 
         {BULLETS.map(({ text, textTop, icon }) => (
           <View key={text}>
