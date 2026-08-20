@@ -1,9 +1,12 @@
-import React from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Animated, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
 
+import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
 import { colors, fonts } from '../theme';
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /**
  * The sign-in screen: a form panel beside a starry gradient panel.
@@ -41,12 +44,7 @@ export function SignIn() {
             endly.<Text style={{ color: colors.accent }}>lk</Text>
           </Text>
 
-          <Field label="Email Address" top={299} inputMode="email" />
-          <Field label="Password" top={397} secureTextEntry />
-
-          <Pressable accessibilityRole="button" style={styles.signIn}>
-            <Text style={styles.signInLabel}>SIGN IN</Text>
-          </Pressable>
+          <SignInForm />
 
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
@@ -55,21 +53,21 @@ export function SignIn() {
           </View>
 
           <View style={styles.socialRow}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Sign in with Google">
+            <SocialButton label="Sign in with Google">
               <GoogleIcon />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Sign in with Apple">
+            </SocialButton>
+            <SocialButton label="Sign in with Apple">
               <AppleIcon />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Sign in with Facebook">
+            </SocialButton>
+            <SocialButton label="Sign in with Facebook">
               <FacebookIcon />
-            </Pressable>
+            </SocialButton>
           </View>
 
-          <Text style={styles.footnote}>
-            Already have a Vendly account?{' '}
-            <Text style={styles.footnoteLink}>Log in</Text>
-          </Text>
+          <View style={styles.footnote}>
+            <Text style={styles.footnoteText}>Already have a Vendly account? </Text>
+            <FootnoteLink />
+          </View>
         </View>
 
         <LinearGradient
@@ -139,23 +137,245 @@ function starPath(cx: number, cy: number, outer: number, inner: number) {
 type FieldProps = {
   label: string;
   top: number;
+  value: string;
+  onChangeText: (next: string) => void;
+  error?: string | null;
   secureTextEntry?: boolean;
   inputMode?: 'email';
+  autoComplete?: 'email' | 'current-password';
+  textContentType?: 'emailAddress' | 'password';
+  returnKeyType?: 'next' | 'go';
+  onSubmitEditing?: () => void;
+  inputRef?: React.RefObject<TextInput | null>;
+  trailing?: React.ReactNode;
 };
 
-function Field({ label, top, secureTextEntry, inputMode }: FieldProps) {
+/**
+ * The design labels its fields with placeholder text only, which disappears the
+ * moment anyone types — leaving a filled form with unlabelled boxes. The label
+ * here starts as that placeholder and floats up into the top of the field once
+ * it is focused or filled, so the resting state matches the design exactly while
+ * a filled field still says what it holds.
+ */
+function Field({
+  label,
+  top,
+  value,
+  onChangeText,
+  error,
+  secureTextEntry,
+  inputMode,
+  autoComplete,
+  textContentType,
+  returnKeyType,
+  onSubmitEditing,
+  inputRef,
+  trailing,
+}: FieldProps) {
+  const [focused, setFocused] = useState(false);
+  const floated = useToggleAnimation(focused || value.length > 0, 150);
+
   return (
-    <View style={[styles.field, { top }]}>
-      <TextInput
-        placeholder={label}
-        placeholderTextColor="#6d6d6d"
-        style={styles.fieldInput}
-        secureTextEntry={secureTextEntry}
-        inputMode={inputMode}
-        autoCapitalize="none"
-        accessibilityLabel={label}
-      />
+    <View style={[styles.fieldWrap, { top }]}>
+      <View
+        style={[
+          styles.field,
+          focused && styles.fieldFocused,
+          !!error && styles.fieldInvalid,
+        ]}
+      >
+        <Animated.Text
+          pointerEvents="none"
+          style={[
+            styles.fieldLabel,
+            {
+              top: floated.interpolate({ inputRange: [0, 1], outputRange: [27, 8] }),
+              fontSize: floated.interpolate({ inputRange: [0, 1], outputRange: [20, 13] }),
+              color: error ? '#b42318' : focused ? colors.signInNavy : '#6d6d6d',
+            },
+          ]}
+        >
+          {label}
+        </Animated.Text>
+
+        <TextInput
+          ref={inputRef}
+          value={value}
+          onChangeText={onChangeText}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={styles.fieldInput}
+          secureTextEntry={secureTextEntry}
+          inputMode={inputMode}
+          keyboardType={inputMode === 'email' ? 'email-address' : undefined}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          accessibilityLabel={label}
+          aria-invalid={!!error}
+        />
+
+        {trailing}
+      </View>
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.fieldError}>
+          {error}
+        </Text>
+      ) : null}
     </View>
+  );
+}
+
+type Errors = { email?: string; password?: string };
+
+/**
+ * Validation runs on submit rather than on every keystroke, so the form does not
+ * scold anyone mid-way through typing their address.
+ */
+function SignInForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<Errors>({});
+  const [reveal, setReveal] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const emailRef = useRef<TextInput | null>(null);
+  const passwordRef = useRef<TextInput | null>(null);
+  const button = useInteraction();
+  const eye = useInteraction();
+
+  const onSubmit = () => {
+    const next: Errors = {};
+    if (!email.trim()) next.email = 'Enter your email address.';
+    else if (!EMAIL.test(email.trim())) next.email = 'That does not look like an email address.';
+    if (!password) next.password = 'Enter your password.';
+
+    setErrors(next);
+    setStatus(null);
+
+    if (next.email) {
+      emailRef.current?.focus();
+      return;
+    }
+    if (next.password) {
+      passwordRef.current?.focus();
+      return;
+    }
+    setStatus('Sign-in is not connected to a backend yet.');
+  };
+
+  return (
+    <>
+      <Field
+        label="Email Address"
+        top={299}
+        value={email}
+        onChangeText={next => {
+          setEmail(next);
+          if (errors.email) setErrors(prev => ({ ...prev, email: undefined }));
+        }}
+        error={errors.email}
+        inputMode="email"
+        autoComplete="email"
+        textContentType="emailAddress"
+        returnKeyType="next"
+        onSubmitEditing={() => passwordRef.current?.focus()}
+        inputRef={emailRef}
+      />
+
+      <Field
+        label="Password"
+        top={397}
+        value={password}
+        onChangeText={next => {
+          setPassword(next);
+          if (errors.password) setErrors(prev => ({ ...prev, password: undefined }));
+        }}
+        error={errors.password}
+        secureTextEntry={!reveal}
+        autoComplete="current-password"
+        textContentType="password"
+        returnKeyType="go"
+        onSubmitEditing={onSubmit}
+        inputRef={passwordRef}
+        trailing={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={reveal ? 'Hide password' : 'Show password'}
+            accessibilityState={{ checked: reveal }}
+            onPress={() => setReveal(v => !v)}
+            {...eye.handlers}
+            style={[styles.reveal, clickable, eye.focusVisible && focusRing(colors.signInNavy, 2)]}
+          >
+            <Text style={[styles.revealLabel, eye.highlighted && styles.revealLabelActive]}>
+              {reveal ? 'Hide' : 'Show'}
+            </Text>
+          </Pressable>
+        }
+      />
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={onSubmit}
+        {...button.handlers}
+        style={[
+          styles.signIn,
+          clickable,
+          button.highlighted && styles.signInHover,
+          button.pressed && styles.signInPressed,
+          button.focusVisible && focusRing(colors.accent, 3),
+        ]}
+      >
+        <Text style={styles.signInLabel}>SIGN IN</Text>
+      </Pressable>
+
+      {status ? (
+        <Text accessibilityLiveRegion="polite" style={styles.status}>
+          {status}
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
+function SocialButton({ label, children }: { label: string; children: React.ReactNode }) {
+  const { pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const lift = useToggleAnimation(highlighted && !pressed, 150);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      {...handlers}
+      style={[styles.socialHit, clickable, focusVisible && focusRing(colors.signInNavy, 3)]}
+    >
+      <Animated.View
+        style={{
+          opacity: pressed ? 0.75 : 1,
+          transform: [
+            { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -3] }) },
+          ],
+        }}
+      >
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function FootnoteLink() {
+  const { hovered, focusVisible, handlers } = useInteraction();
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      {...handlers}
+      style={[clickable, focusVisible && focusRing(colors.signInNavy, 2)]}
+    >
+      <Text style={[styles.footnoteLink, hovered && styles.footnoteLinkHover]}>Log in</Text>
+    </Pressable>
   );
 }
 
@@ -235,20 +455,71 @@ const styles = StyleSheet.create({
     fontSize: 40,
   },
 
-  field: {
+  fieldWrap: {
     position: 'absolute',
     left: 126,
     width: 555,
+  },
+  field: {
+    width: '100%',
     height: 78,
     borderWidth: 1,
     borderColor: '#000000',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     paddingHorizontal: 22,
+    paddingBottom: 12,
+  },
+  fieldFocused: {
+    borderWidth: 2,
+    borderColor: colors.signInNavy,
+  },
+  fieldInvalid: {
+    borderWidth: 2,
+    borderColor: '#b42318',
+  },
+  fieldLabel: {
+    position: 'absolute',
+    left: 23,
+    fontFamily: fonts.ui,
   },
   fieldInput: {
     fontFamily: fonts.ui,
     fontSize: 20,
     color: '#000000',
+    paddingRight: 64,
+  },
+  fieldError: {
+    marginTop: 6,
+    fontFamily: fonts.ui,
+    fontSize: 15,
+    color: '#b42318',
+  },
+  reveal: {
+    position: 'absolute',
+    right: 14,
+    top: 24,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  revealLabel: {
+    fontFamily: fonts.ui,
+    fontSize: 16,
+    color: '#4a4a4a',
+  },
+  revealLabelActive: {
+    color: colors.signInNavy,
+    textDecorationLine: 'underline',
+  },
+  status: {
+    position: 'absolute',
+    left: 207,
+    top: 616,
+    width: 393,
+    textAlign: 'center',
+    fontFamily: fonts.ui,
+    fontSize: 15,
+    color: colors.signInNavy,
   },
 
   signIn: {
@@ -260,6 +531,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.signInNavy,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  signInHover: {
+    backgroundColor: '#02509c',
+  },
+  signInPressed: {
+    opacity: 0.9,
   },
   signInLabel: {
     color: '#ffffff',
@@ -291,12 +568,19 @@ const styles = StyleSheet.create({
   socialRow: {
     position: 'absolute',
     left: 207,
-    top: 668,
+    top: 668 - 8,
     width: 393,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 68,
+    gap: 68 - 16,
+  },
+  socialHit: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   footnote: {
@@ -304,13 +588,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 757,
-    textAlign: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'baseline',
+  },
+  footnoteText: {
     fontFamily: fonts.ui,
     fontSize: 20,
     color: '#3d3d3d',
   },
   footnoteLink: {
+    fontFamily: fonts.ui,
+    fontSize: 20,
     color: '#3d3d3d',
     textDecorationLine: 'underline',
+  },
+  footnoteLinkHover: {
+    color: colors.signInNavy,
   },
 });

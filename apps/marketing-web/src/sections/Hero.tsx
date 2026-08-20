@@ -1,8 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { AccessibilityInfo, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Animated,
+  AppState,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import Svg, { Path } from 'react-native-svg';
 
+import { Reveal, REVEAL_STAGGER } from '../components/Reveal';
+import { usePageScroll, useIsSectionActive } from '../components/ScaledPage';
 import { TopBar } from '../components/TopBar';
+import { clickable, focusRing, useInteraction, useToggleAnimation } from '../interaction';
+import { useNavigation } from '../Navigation';
 import { useTheme } from '../ThemeContext';
 import { colors, fonts } from '../theme';
 
@@ -25,8 +39,12 @@ const HEADLINE_INK_OFFSET = 17;
 
 export function Hero() {
   const { theme, themeName } = useTheme();
+  const { navigate } = useNavigation();
+  const { scrollToSection } = usePageScroll();
+  const onScreen = useIsSectionActive('hero');
   const isDark = themeName === 'dark';
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [visible, setVisible] = useState(() => AppState.currentState !== 'background');
 
   // A 10s loop that plays on its own is exactly what "reduce motion" is for.
   useEffect(() => {
@@ -41,15 +59,27 @@ export function Hero() {
     };
   }, []);
 
+  // Browsers stop background media to save power, and asking a hidden video to
+  // play just races that and rejects. Following the page's own visibility keeps
+  // the loop off while nobody is watching it.
+  //
+  // The test is "not backgrounded" rather than "is active" deliberately: if a
+  // platform reports some third state, the video should still play. Failing the
+  // other way would leave the hero permanently frozen on its poster.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => setVisible(state !== 'background'));
+    return () => sub.remove();
+  }, []);
+
   const player = useVideoPlayer(require('../../assets/site/hero.mp4'), instance => {
     instance.loop = true;
     instance.muted = true;
   });
 
   useEffect(() => {
-    if (reduceMotion) player.pause();
+    if (reduceMotion || !visible) player.pause();
     else player.play();
-  }, [player, reduceMotion]);
+  }, [player, reduceMotion, visible]);
 
   return (
     <View style={[styles.section, { backgroundColor: theme.pageBg }]}>
@@ -74,36 +104,131 @@ export function Hero() {
         />
       ) : null}
 
-      <Text style={[styles.headline, { top: HEADLINE_INK_TOP - HEADLINE_INK_OFFSET, color: theme.text }]}>
-        Build Your Empire
-      </Text>
-      <Text
-        style={[
-          styles.headline,
-          {
-            top: HEADLINE_INK_TOP + HEADLINE_LINE_STEP - HEADLINE_INK_OFFSET,
-            color: isDark ? colors.accent : theme.text,
-          },
-        ]}
-      >
-        Today!
-      </Text>
-
-      <Pressable
-        accessibilityRole="button"
-        style={[styles.cta, { backgroundColor: theme.ctaBg }]}
-      >
-        <Text numberOfLines={1} style={[styles.ctaLabel, { color: theme.ctaLabel }]}>
-          Start For Free
+      <Reveal visible={onScreen}>
+        <Text
+          style={[styles.headline, { top: HEADLINE_INK_TOP - HEADLINE_INK_OFFSET, color: theme.text }]}
+        >
+          Build Your Empire
         </Text>
-      </Pressable>
+      </Reveal>
+      <Reveal visible={onScreen} delay={REVEAL_STAGGER}>
+        <Text
+          style={[
+            styles.headline,
+            {
+              top: HEADLINE_INK_TOP + HEADLINE_LINE_STEP - HEADLINE_INK_OFFSET,
+              color: isDark ? colors.accent : theme.text,
+            },
+          ]}
+        >
+          Today!
+        </Text>
+      </Reveal>
 
-      <Pressable accessibilityRole="link" style={styles.whyLink}>
-        <Text style={[styles.whyLabel, { color: theme.text }]}>Why We Build Vendly</Text>
-      </Pressable>
+      <Reveal visible={onScreen} delay={REVEAL_STAGGER * 2}>
+        <HeroCta bg={theme.ctaBg} label={theme.ctaLabel} onPress={() => navigate('signin')} />
+        <WhyLink color={theme.text} onPress={() => scrollToSection('about')} />
+      </Reveal>
 
       <TopBar />
     </View>
+  );
+}
+
+/** The hero's primary action, matching the nav pill's hover behaviour. */
+function HeroCta({ bg, label, onPress }: { bg: string; label: string; onPress: () => void }) {
+  const { pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const lift = useToggleAnimation(highlighted && !pressed, 160);
+
+  return (
+    <Animated.View
+      style={[
+        styles.ctaWrap,
+        {
+          transform: [
+            { translateY: lift.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
+          ],
+        },
+      ]}
+    >
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        {...handlers}
+        style={[
+          styles.cta,
+          clickable,
+          { backgroundColor: bg, opacity: pressed ? 0.85 : 1 },
+          focusVisible && focusRing(colors.accent, 4),
+        ]}
+      >
+        <Text numberOfLines={1} style={[styles.ctaLabel, { color: label }]}>
+          Start For Free
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/** Light-on-dark and dark-on-light both need the same faint wash on hover. */
+function withAlpha(hex: string, alpha: number) {
+  const n = hex.replace('#', '');
+  const v = n.length === 3 ? n.split('').map(c => c + c).join('') : n;
+  const r = parseInt(v.slice(0, 2), 16);
+  const g = parseInt(v.slice(2, 4), 16);
+  const b = parseInt(v.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * The secondary action, paired with the filled one the way the reference site
+ * pairs its two: a filled pill for the primary, an outlined pill with a chevron
+ * for the "tell me more" beside it. The design leaves this as bare text, which
+ * reads as a footnote rather than the alternative route it is.
+ */
+function WhyLink({ color, onPress }: { color: string; onPress: () => void }) {
+  const { hovered, pressed, focusVisible, highlighted, handlers } = useInteraction();
+  const grow = useToggleAnimation(highlighted);
+
+  return (
+    <Animated.View
+      style={[
+        styles.whyLink,
+        {
+          transform: [
+            { translateY: grow.interpolate({ inputRange: [0, 1], outputRange: [0, -2] }) },
+          ],
+        },
+      ]}
+    >
+      <Pressable
+        accessibilityRole="link"
+        onPress={onPress}
+        {...handlers}
+        style={[
+          styles.whyPill,
+          clickable,
+          {
+            borderColor: color,
+            backgroundColor: hovered ? withAlpha(color, 0.1) : 'transparent',
+            opacity: pressed ? 0.7 : 1,
+          },
+          focusVisible && focusRing(color, 3),
+        ]}
+      >
+        <Text style={[styles.whyLabel, { color }]}>Why We Build Vendly</Text>
+        <Svg width={17} height={17} viewBox="0 0 24 24">
+          <Path
+            d="M9 6l6 6-6 6"
+            fill="none"
+            stroke={color}
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -127,10 +252,12 @@ const styles = StyleSheet.create({
     fontSize: 64,
     lineHeight: 93,
   },
-  cta: {
+  ctaWrap: {
     position: 'absolute',
     left: 40,
     top: 899,
+  },
+  cta: {
     width: 157,
     height: 51,
     borderRadius: 56,
@@ -145,11 +272,28 @@ const styles = StyleSheet.create({
   },
   whyLink: {
     position: 'absolute',
-    left: 282.5,
-    top: 906,
+    left: 227,
+    top: 899,
+  },
+  whyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    height: 51,
+    paddingHorizontal: 24,
+    borderRadius: 56,
+    borderWidth: 2,
   },
   whyLabel: {
     fontFamily: fonts.cta,
     fontSize: 20,
+  },
+  whyUnderline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -3,
+    height: 2,
+    borderRadius: 1,
   },
 });
