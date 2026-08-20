@@ -77,6 +77,13 @@ export type PageSection = {
   /** The page's own height on the 1440-wide canvas. */
   height: number;
   content: React.ReactNode;
+  /**
+   * Painted edge to edge behind the page, so a viewport wider than the design
+   * shows more of the page's own ground rather than bars beside it. A colour
+   * covers most pages; give a node when the ground is a gradient or an image.
+   */
+  background?: string;
+  backgroundNode?: React.ReactNode;
 };
 
 export type ScaledPageProps = {
@@ -164,33 +171,56 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
           scrollEventThrottle={16}
           onScroll={handleScroll}
         >
-          {sections.map(section => (
-            <View
-              key={section.id}
-              style={[styles.slot, { width: viewport.width, height: viewport.height }]}
-            >
+          {sections.map(section => {
+            // Contain, never cover: the page is scaled to whichever axis runs
+            // out first, so nothing is cropped and nothing is enlarged past the
+            // point where it would soften.
+            const scale = Math.min(
+              viewport.width / FRAME.width,
+              viewport.height / section.height,
+            );
+            // The canvas is then grown, in design units, to whatever the
+            // viewport actually is. The page composes at 1440 as drawn; the
+            // extra width exists purely so its ground can reach the edges.
+            const canvasWidth = viewport.width / scale;
+            const canvasHeight = viewport.height / scale;
+
+            return (
               <View
-                style={[
-                  styles.canvas,
-                  {
-                    height: section.height,
-                    transform: [
-                      {
-                        scale: Math.min(
-                          viewport.width / FRAME.width,
-                          viewport.height / section.height,
-                        ),
-                      },
-                    ],
-                  },
-                ]}
+                key={section.id}
+                style={[styles.slot, { width: viewport.width, height: viewport.height }]}
               >
-                <ActiveSectionCtx.Provider value={ids[activeIndex] ?? null}>
-                  {section.content}
-                </ActiveSectionCtx.Provider>
+                <View
+                  style={[
+                    styles.canvas,
+                    {
+                      width: canvasWidth,
+                      height: canvasHeight,
+                      transform: [{ scale }],
+                      transformOrigin: 'top left',
+                      backgroundColor: section.background,
+                    },
+                  ]}
+                >
+                  {section.backgroundNode ?? null}
+
+                  <View
+                    style={{
+                      position: 'absolute',
+                      left: (canvasWidth - FRAME.width) / 2,
+                      top: (canvasHeight - section.height) / 2,
+                      width: FRAME.width,
+                      height: section.height,
+                    }}
+                  >
+                    <ActiveSectionCtx.Provider value={ids[activeIndex] ?? null}>
+                      {section.content}
+                    </ActiveSectionCtx.Provider>
+                  </View>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </ScrollView>
       </PageScrollCtx.Provider>
     </View>
@@ -203,11 +233,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   slot: {
-    alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'hidden',
   },
   canvas: {
-    width: FRAME.width,
+    overflow: 'hidden',
   },
 });

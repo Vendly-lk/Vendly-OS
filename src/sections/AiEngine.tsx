@@ -20,6 +20,22 @@ import { GUTTER, styles as kit } from './kit';
 
 export const AI_HEIGHT = 1024;
 
+/**
+ * This page's ground, painted behind the whole viewport rather than only the
+ * 1440 the page composes on — otherwise the gradient stops short of the edges
+ * and the screen reads as a band with bars beside it.
+ */
+export function AiBackdrop() {
+  return (
+    <LinearGradient
+      colors={['#0b1f4d', '#141048', '#2a0f5c']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={StyleSheet.absoluteFill}
+    />
+  );
+}
+
 const SIGNALS = [
   { label: 'Refused deliveries', weight: 'High' },
   { label: 'Unreachable on phone', weight: 'High' },
@@ -33,13 +49,6 @@ export function AiEngine() {
 
   return (
     <View style={kit.section}>
-      <LinearGradient
-        colors={['#0b1f4d', '#141048', '#2a0f5c']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
       <Reveal visible={onScreen}>
         <Text accessibilityRole="header" style={styles.heading}>
           Scored before it ships.
