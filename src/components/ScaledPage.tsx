@@ -144,7 +144,20 @@ export function ScaledPage({ sections, backgroundColor }: ScaledPageProps) {
     const onResize = () => applyViewport(readViewport());
     window.addEventListener('resize', onResize);
     onResize();
-    return () => window.removeEventListener('resize', onResize);
+    // The static export has been observed to mount with a stale/fallback
+    // size on first paint and never receive a `resize` event to correct
+    // it — the page then never leaves the 1440x1024 default scale until
+    // something (e.g. the user actually resizing the window) happens to
+    // trigger one. A deferred re-check catches that: whatever the exact
+    // cause, re-reading a frame (and, as a last resort, a beat) later
+    // reliably picks up the real size.
+    const raf = requestAnimationFrame(onResize);
+    const settle = setTimeout(onResize, 300);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      cancelAnimationFrame(raf);
+      clearTimeout(settle);
+    };
   }, [applyViewport]);
 
   const ids = useMemo(() => sections.map(section => section.id), [sections]);
